@@ -79,6 +79,18 @@ const App = () => {
               { day: 'Day -3', sleep: '11:00 PM', wake: '7:00 AM', tips: ['Avoid caffeine after 2 PM', 'Get 30 min sunlight'] },
               { day: 'Day -2', sleep: '10:30 PM', wake: '6:30 AM', tips: ['Light dinner by 7 PM', 'Start taking melatonin'] },
               { day: 'Day -1', sleep: '10:00 PM', wake: '6:00 AM', tips: ['Pack and relax', 'Hydrate well'] }
+            ],
+            inFlight: [
+              'Board: Set watch to Delhi time immediately',
+              'Hour 2-6: Sleep (use eye mask & earplugs)',
+              'Hour 8: Wake up, have breakfast',
+              'Hour 10-14: Stay awake, watch movies',
+              'Avoid alcohol, drink water every hour'
+            ],
+            postArrival: [
+              'Day 1: Stay awake until 9 PM local time',
+              'Day 2-3: Sleep 10 PM - 6 AM',
+              'Day 4: You should feel normal!'
             ]
           }
         },
@@ -130,6 +142,18 @@ const App = () => {
               { day: 'Day -3', sleep: '11:30 PM', wake: '7:30 AM', tips: ['Evening workout', 'Limit screen time'] },
               { day: 'Day -2', sleep: '11:00 PM', wake: '7:00 AM', tips: ['Eat meals at new time', 'Stay hydrated'] },
               { day: 'Day -1', sleep: '10:30 PM', wake: '6:30 AM', tips: ['Relax', 'Confirm travel docs'] }
+            ],
+            inFlight: [
+              'Board: Adjust watch to Delhi time',
+              'Hour 1-2: Stay awake, light dinner',
+              'Hour 3-8: Sleep period',
+              'Hour 9: Wake, have breakfast',
+              'Arrival: Get sunlight immediately'
+            ],
+            postArrival: [
+              'Day 1: Stay active until 9 PM',
+              'Day 2: Normal schedule',
+              'Day 3: Fully adjusted!'
             ]
           }
         },
@@ -181,6 +205,18 @@ const App = () => {
               { day: 'Day -3', sleep: '11:00 PM', wake: '7:00 AM', tips: ['Morning exercise', 'Eat light dinner'] },
               { day: 'Day -2', sleep: '10:30 PM', wake: '6:30 AM', tips: ['Afternoon nap OK', 'Stay hydrated'] },
               { day: 'Day -1', sleep: '10:00 PM', wake: '6:00 AM', tips: ['Final prep', 'Early dinner'] }
+            ],
+            inFlight: [
+              'Board: Switch to Delhi time',
+              'Hour 2-3: Have meal, stay awake',
+              'Hour 4-9: Sleep with eye mask',
+              'Hour 10: Wake, light breakfast',
+              'Stay hydrated throughout'
+            ],
+            postArrival: [
+              'Day 1: Resist nap, sleep at 10 PM',
+              'Day 2-3: Maintain schedule',
+              'Day 4: Feeling great!'
             ]
           }
         }
@@ -459,6 +495,95 @@ const App = () => {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Jet Lag Optimizer Toggle */}
+        <button
+          onClick={() => setExpandedJetLag(prev => ({ ...prev, [flight.id]: !prev[flight.id] }))}
+          className="w-full mb-3 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+          Jet Lag Optimizer
+          {jetLagExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+
+        {/* Jet Lag Content */}
+        {jetLagExpanded && (
+          <div className="mb-4 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg">
+            <div className="mb-4">
+              <h4 className="font-semibold mb-2">Overview</h4>
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div>
+                  <p className="text-gray-600">Time Diff</p>
+                  <p className="font-semibold">{flight.jetLagOptimizer.timeDifference}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Severity</p>
+                  <p className="font-semibold">{flight.jetLagOptimizer.severity}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Recovery</p>
+                  <p className="font-semibold">{flight.jetLagOptimizer.recoveryTime}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <h4 className="font-semibold mb-2 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                Pre-Departure (3 Days Before)
+              </h4>
+              {flight.jetLagOptimizer.preDeparture.map((day, idx) => (
+                <div key={idx} className="mb-3 p-3 bg-white rounded-lg">
+                  <p className="font-semibold text-sm">{day.day}</p>
+                  <p className="text-sm text-gray-700">Sleep: {day.sleep} - Wake: {day.wake}</p>
+                  <ul className="text-xs text-gray-600 mt-1 space-y-1">
+                    {day.tips.map((tip, tipIdx) => (
+                      <li key={tipIdx}>• {tip}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            {flight.jetLagOptimizer.inFlight && (
+              <div className="mb-4">
+                <h4 className="font-semibold mb-2 flex items-center gap-2">
+                  <Plane className="w-4 h-4" />
+                  In-Flight Tips
+                </h4>
+                <ul className="text-sm space-y-2">
+                  {flight.jetLagOptimizer.inFlight.map((tip, idx) => (
+                    <li key={idx} className="flex gap-2">
+                      <span className="text-indigo-600">•</span>
+                      <span>{tip}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {flight.jetLagOptimizer.postArrival && (
+              <div>
+                <h4 className="font-semibold mb-2 flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  Post-Arrival
+                </h4>
+                <ul className="text-sm space-y-2">
+                  {flight.jetLagOptimizer.postArrival.map((tip, idx) => (
+                    <li key={idx} className="flex gap-2">
+                      <span className="text-indigo-600">•</span>
+                      <span>{tip}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
