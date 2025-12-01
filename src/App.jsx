@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plane, MapPin, Calendar, Users, X, User, LogOut, Clock, Settings, TrendingUp, Leaf, Star, Coffee, Moon, Sun, Zap, DollarSign, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plane, MapPin, Calendar, Users, X, User, LogOut, Clock, Settings, TrendingUp, Leaf, Star, Zap, ChevronDown, ChevronUp, Send } from 'lucide-react';
 
 const App = () => {
   const [messages, setMessages] = useState([]);
@@ -14,6 +14,7 @@ const App = () => {
   const [user, setUser] = useState(null);
   const [expandedTimeline, setExpandedTimeline] = useState({});
   const [expandedJetLag, setExpandedJetLag] = useState({});
+  const [currentFlightData, setCurrentFlightData] = useState(null);
 
   const filterOptions = {
     'Class': ['Economy', 'Premium Economy', 'Business', 'First'],
@@ -44,14 +45,12 @@ const App = () => {
           price: 1245,
           originalPrice: 1450,
           discount: 14,
-          
-          // New features
           comfortScore: 7.8,
-          carbonFootprint: 2.4, // tons CO2
+          carbonFootprint: 2.4,
           wifiAvailable: true,
           mealIncluded: true,
           
-          pricePredict ion: {
+          pricePrediction: {
             trend: 'increasing',
             confidence: 87,
             predictedIncrease: 15,
@@ -61,30 +60,14 @@ const App = () => {
             currentVsOptimal: 'Current price is optimal'
           },
           
-          priceBreakdown: {
-            baseFare: 892,
-            taxes: 203,
-            fees: 95,
-            fuel: 55
-          },
-          
-          loyaltyProgram: {
-            miles: 45000,
-            cashNeeded: 120,
-            totalSavings: 1125
-          },
-          
           timeline: [
             { time: '10:30 AM', event: '✈️ Takeoff from Houston (IAH)', type: 'departure' },
             { time: '11:45 AM', event: '☕ Beverage service begins', type: 'service' },
             { time: '1:30 PM', event: '🍽️ Meal service - International cuisine', type: 'meal' },
             { time: '3:00 PM', event: '🌙 Lights dimmed for rest period', type: 'rest' },
-            { time: '7:00 PM', event: '🌅 Sunrise over Arabian Sea', type: 'scenery' },
-            { time: '8:30 PM', event: '☕ Breakfast service', type: 'meal' },
             { time: '9:45 PM', event: '🛬 Landing in Dubai (DXB)', type: 'arrival' },
-            { time: '9:45 PM - 11:45 PM', event: '⏱️ 2-hour layover - Dubai Terminal 3', type: 'layover', details: 'Time to explore duty-free, grab a meal, or relax in the lounge' },
+            { time: '9:45 PM - 11:45 PM', event: '⏱️ 2-hour layover - Dubai Terminal 3', type: 'layover' },
             { time: '11:45 PM', event: '✈️ Takeoff from Dubai', type: 'departure' },
-            { time: '12:30 AM', event: '🍽️ Light meal service', type: 'meal' },
             { time: '2:45 PM', event: '🛬 Arrival in New Delhi (DEL)', type: 'arrival' }
           ],
           
@@ -93,21 +76,9 @@ const App = () => {
             severity: 'Moderate',
             recoveryTime: '4-6 days',
             preDeparture: [
-              { day: 'Day -3', sleep: '11:00 PM', wake: '7:00 AM', tips: ['Avoid caffeine after 2 PM', 'Get 30 min sunlight exposure'] },
+              { day: 'Day -3', sleep: '11:00 PM', wake: '7:00 AM', tips: ['Avoid caffeine after 2 PM', 'Get 30 min sunlight'] },
               { day: 'Day -2', sleep: '10:30 PM', wake: '6:30 AM', tips: ['Light dinner by 7 PM', 'Start taking melatonin'] },
               { day: 'Day -1', sleep: '10:00 PM', wake: '6:00 AM', tips: ['Pack and relax', 'Hydrate well'] }
-            ],
-            inFlight: [
-              'Board: Set watch to Delhi time immediately',
-              'Hour 2-6: Sleep (use eye mask & earplugs)',
-              'Hour 8: Wake up, have breakfast',
-              'Hour 10-14: Stay awake, watch movies',
-              'Avoid alcohol, drink water every hour'
-            ],
-            postArrival: [
-              'Day 1: Stay awake until 9 PM local time',
-              'Day 2-3: Sleep 10 PM - 6 AM',
-              'Day 4: You should feel normal!'
             ]
           }
         },
@@ -126,7 +97,6 @@ const App = () => {
           price: 1580,
           originalPrice: 1680,
           discount: 6,
-          
           comfortScore: 9.2,
           carbonFootprint: 2.2,
           wifiAvailable: true,
@@ -142,29 +112,13 @@ const App = () => {
             currentVsOptimal: '$35 above optimal'
           },
           
-          priceBreakdown: {
-            baseFare: 1125,
-            taxes: 255,
-            fees: 125,
-            fuel: 75
-          },
-          
-          loyaltyProgram: {
-            miles: 52000,
-            cashNeeded: 180,
-            totalSavings: 1400
-          },
-          
           timeline: [
             { time: '8:45 PM', event: '✈️ Takeoff from Houston (IAH)', type: 'departure' },
             { time: '10:00 PM', event: '🍽️ Gourmet dinner service', type: 'meal' },
             { time: '11:30 PM', event: '🌙 Cabin lights dimmed', type: 'rest' },
-            { time: '5:00 AM', event: '🌅 Sunrise - Arabian Peninsula', type: 'scenery' },
-            { time: '6:30 AM', event: '☕ Breakfast service begins', type: 'meal' },
             { time: '7:15 AM', event: '🛬 Landing in Dubai (DXB)', type: 'arrival' },
-            { time: '7:15 AM - 8:45 AM', event: '⏱️ 1.5-hour layover - Dubai Terminal 3', type: 'layover', details: 'Quick transfer - perfect timing' },
+            { time: '7:15 AM - 8:45 AM', event: '⏱️ 1.5-hour layover', type: 'layover' },
             { time: '8:45 AM', event: '✈️ Takeoff from Dubai', type: 'departure' },
-            { time: '9:30 AM', event: '☕ Light refreshments', type: 'service' },
             { time: '10:15 AM', event: '🛬 Arrival in New Delhi (DEL)', type: 'arrival' }
           ],
           
@@ -174,20 +128,8 @@ const App = () => {
             recoveryTime: '3-4 days',
             preDeparture: [
               { day: 'Day -3', sleep: '11:30 PM', wake: '7:30 AM', tips: ['Evening workout', 'Limit screen time'] },
-              { day: 'Day -2', sleep: '11:00 PM', wake: '7:00 AM', tips: ['Eat meals at new time zone', 'Stay hydrated'] },
+              { day: 'Day -2', sleep: '11:00 PM', wake: '7:00 AM', tips: ['Eat meals at new time', 'Stay hydrated'] },
               { day: 'Day -1', sleep: '10:30 PM', wake: '6:30 AM', tips: ['Relax', 'Confirm travel docs'] }
-            ],
-            inFlight: [
-              'Board: Adjust watch to Delhi time',
-              'Hour 1-2: Stay awake, light dinner',
-              'Hour 3-8: Sleep period',
-              'Hour 9: Wake, have breakfast',
-              'Arrival: Get sunlight immediately'
-            ],
-            postArrival: [
-              'Day 1: Stay active until 9 PM',
-              'Day 2: Normal schedule',
-              'Day 3: Fully adjusted!'
             ]
           }
         },
@@ -206,7 +148,6 @@ const App = () => {
           price: 1380,
           originalPrice: 1550,
           discount: 11,
-          
           comfortScore: 8.9,
           carbonFootprint: 2.3,
           wifiAvailable: true,
@@ -222,30 +163,13 @@ const App = () => {
             currentVsOptimal: '$69 above optimal'
           },
           
-          priceBreakdown: {
-            baseFare: 985,
-            taxes: 225,
-            fees: 105,
-            fuel: 65
-          },
-          
-          loyaltyProgram: {
-            miles: 48000,
-            cashNeeded: 150,
-            totalSavings: 1230
-          },
-          
           timeline: [
             { time: '1:15 PM', event: '✈️ Takeoff from Houston (IAH)', type: 'departure' },
             { time: '2:30 PM', event: '🍽️ Premium meal service', type: 'meal' },
-            { time: '4:00 PM', event: '🎬 Latest movies available', type: 'entertainment' },
             { time: '6:00 PM', event: '🌙 Rest period begins', type: 'rest' },
-            { time: '10:30 PM', event: '🌅 Sunset over Europe', type: 'scenery' },
-            { time: '12:00 AM', event: '☕ Pre-landing refreshments', type: 'service' },
             { time: '1:00 AM', event: '🛬 Landing in Doha (DOH)', type: 'arrival' },
-            { time: '1:00 AM - 3:30 AM', event: '⏱️ 2.5-hour layover - Hamad International', type: 'layover', details: 'Award-winning airport - explore art installations' },
+            { time: '1:00 AM - 3:30 AM', event: '⏱️ 2.5-hour layover', type: 'layover' },
             { time: '3:30 AM', event: '✈️ Takeoff from Doha', type: 'departure' },
-            { time: '4:15 AM', event: '🍽️ Breakfast service', type: 'meal' },
             { time: '5:30 PM', event: '🛬 Arrival in New Delhi (DEL)', type: 'arrival' }
           ],
           
@@ -255,26 +179,14 @@ const App = () => {
             recoveryTime: '4-5 days',
             preDeparture: [
               { day: 'Day -3', sleep: '11:00 PM', wake: '7:00 AM', tips: ['Morning exercise', 'Eat light dinner'] },
-              { day: 'Day -2', sleep: '10:30 PM', wake: '6:30 AM', tips: ['Afternoon nap if needed', 'Stay hydrated'] },
+              { day: 'Day -2', sleep: '10:30 PM', wake: '6:30 AM', tips: ['Afternoon nap OK', 'Stay hydrated'] },
               { day: 'Day -1', sleep: '10:00 PM', wake: '6:00 AM', tips: ['Final prep', 'Early dinner'] }
-            ],
-            inFlight: [
-              'Board: Switch to Delhi time',
-              'Hour 2-3: Have meal, stay awake',
-              'Hour 4-9: Sleep with eye mask',
-              'Hour 10: Wake, light breakfast',
-              'Stay hydrated throughout'
-            ],
-            postArrival: [
-              'Day 1: Resist nap, sleep at 10 PM',
-              'Day 2-3: Maintain schedule',
-              'Day 4: Feeling great!'
             ]
           }
         }
       ],
       recommendations: [
-        { icon: '💡', text: 'You usually prefer morning flights - Emirates option arrives early!' },
+        { icon: '💡', text: 'You usually prefer morning flights - Emirates arrives early!' },
         { icon: '💰', text: 'Save $200 by flying on Tuesday instead of Wednesday' },
         { icon: '🏆', text: 'Premium Economy available - only $250 more for extra legroom' }
       ]
@@ -323,18 +235,82 @@ const App = () => {
       }, ...prev]);
     }
 
-    setTimeout(() => {
-      const flightData = generateFlightOptions(messageText);
-      const assistantMessage = {
-        role: 'assistant',
-        content: messageText,
-        flightData: flightData
-      };
-      
-      setMessages([...newMessages, assistantMessage]);
-      setShowFilters(true);
-      setIsLoading(false);
-    }, 1500);
+    // Check if this is the first message (initial flight search)
+    const isFirstMessage = messages.length === 0;
+
+    if (isFirstMessage) {
+      // First message - show flight cards
+      setTimeout(() => {
+        const flightData = generateFlightOptions(messageText);
+        setCurrentFlightData(flightData);
+        const assistantMessage = {
+          role: 'assistant',
+          content: messageText,
+          flightData: flightData,
+          showCards: true
+        };
+        
+        setMessages([...newMessages, assistantMessage]);
+        setShowFilters(true);
+        setIsLoading(false);
+      }, 1500);
+    } else {
+      // Follow-up conversation - use Claude API
+      try {
+        // Build context for Claude
+        let contextPrompt = `You are a helpful flight search assistant. `;
+        
+        if (currentFlightData) {
+          contextPrompt += `The user previously searched for flights and you showed them these options:\n\n`;
+          currentFlightData.flights.forEach(flight => {
+            contextPrompt += `${flight.badge} - ${flight.airline} (${flight.flightNumber})\n`;
+            contextPrompt += `Price: $${flight.price}, Duration: ${flight.duration}, Stops: ${flight.stops}\n`;
+            contextPrompt += `Comfort Score: ${flight.comfortScore}/10, Carbon: ${flight.carbonFootprint}t CO₂\n`;
+            contextPrompt += `WiFi: ${flight.wifiAvailable ? 'Yes' : 'No'}\n\n`;
+          });
+        }
+        
+        contextPrompt += `\nNow the user is asking a follow-up question. Answer conversationally and helpfully based on the flight options shown. If they ask about specific flights, refer to the details above. If they want different options, suggest modifications. Keep responses concise and friendly.`;
+
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1000,
+            system: contextPrompt,
+            messages: newMessages.map(msg => {
+              if (msg.flightData) {
+                return { role: msg.role, content: `User searched: ${msg.content}` };
+              }
+              return { role: msg.role, content: msg.content };
+            })
+          })
+        });
+
+        const data = await response.json();
+        const assistantMessage = {
+          role: 'assistant',
+          content: data.content[0].text,
+          showCards: false
+        };
+        
+        setMessages([...newMessages, assistantMessage]);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error:', error);
+        // Fallback to simple response
+        const fallbackMessage = {
+          role: 'assistant',
+          content: "I'd be happy to help you with that! Could you provide more details about what you're looking for?",
+          showCards: false
+        };
+        setMessages([...newMessages, fallbackMessage]);
+        setIsLoading(false);
+      }
+    }
   };
 
   const handleSocialLogin = (provider) => {
@@ -366,7 +342,7 @@ const App = () => {
     return baseUrls[partners[Math.floor(Math.random() * partners.length)]];
   };
 
-  const FlightCard = ({ flight, index }) => {
+  const FlightCard = ({ flight }) => {
     const timelineExpanded = expandedTimeline[flight.id];
     const jetLagExpanded = expandedJetLag[flight.id];
 
@@ -479,91 +455,9 @@ const App = () => {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium">{event.event}</p>
-                    {event.details && <p className="text-xs text-gray-600 mt-1">{event.details}</p>}
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-        )}
-
-        {/* Jet Lag Optimizer Toggle */}
-        <button
-          onClick={() => setExpandedJetLag(prev => ({ ...prev, [flight.id]: !prev[flight.id] }))}
-          className="w-full mb-3 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2"
-        >
-          <Moon className="w-5 h-5" />
-          Jet Lag Optimizer
-          {jetLagExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </button>
-
-        {/* Jet Lag Content */}
-        {jetLagExpanded && (
-          <div className="mb-4 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg">
-            <div className="mb-4">
-              <h4 className="font-semibold mb-2">Overview</h4>
-              <div className="grid grid-cols-3 gap-2 text-sm">
-                <div>
-                  <p className="text-gray-600">Time Diff</p>
-                  <p className="font-semibold">{flight.jetLagOptimizer.timeDifference}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Severity</p>
-                  <p className="font-semibold">{flight.jetLagOptimizer.severity}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Recovery</p>
-                  <p className="font-semibold">{flight.jetLagOptimizer.recoveryTime}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <h4 className="font-semibold mb-2 flex items-center gap-2">
-                <Sun className="w-4 h-4" />
-                Pre-Departure (3 Days Before)
-              </h4>
-              {flight.jetLagOptimizer.preDeparture.map((day, idx) => (
-                <div key={idx} className="mb-3 p-3 bg-white rounded-lg">
-                  <p className="font-semibold text-sm">{day.day}</p>
-                  <p className="text-sm text-gray-700">Sleep: {day.sleep} - Wake: {day.wake}</p>
-                  <ul className="text-xs text-gray-600 mt-1 space-y-1">
-                    {day.tips.map((tip, tipIdx) => (
-                      <li key={tipIdx}>• {tip}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-
-            <div className="mb-4">
-              <h4 className="font-semibold mb-2 flex items-center gap-2">
-                <Plane className="w-4 h-4" />
-                In-Flight Tips
-              </h4>
-              <ul className="text-sm space-y-2">
-                {flight.jetLagOptimizer.inFlight.map((tip, idx) => (
-                  <li key={idx} className="flex gap-2">
-                    <span className="text-indigo-600">•</span>
-                    <span>{tip}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-2 flex items-center gap-2">
-                <MapPin className="w-4 h-4" />
-                Post-Arrival
-              </h4>
-              <ul className="text-sm space-y-2">
-                {flight.jetLagOptimizer.postArrival.map((tip, idx) => (
-                  <li key={idx} className="flex gap-2">
-                    <span className="text-indigo-600">•</span>
-                    <span>{tip}</span>
-                  </li>
-                ))}
-              </ul>
             </div>
           </div>
         )}
@@ -594,7 +488,7 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header */}
+      {/* Header - Same as before */}
       <header className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -677,7 +571,7 @@ const App = () => {
         </div>
       </header>
 
-      {/* Login Modal */}
+      {/* Login Modal - Same as before */}
       {showLogin && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 relative">
@@ -832,33 +726,55 @@ const App = () => {
                     </div>
                   ) : (
                     <div>
-                      <div className="mb-6">
-                        <p className="text-lg font-semibold text-gray-800 mb-2">
-                          Great! I found {message.flightData.flights.length} excellent options for you:
-                        </p>
-                      </div>
+                      {message.showCards ? (
+                        /* Show Flight Cards */
+                        <>
+                          <div className="mb-6">
+                            <p className="text-lg font-semibold text-gray-800 mb-2">
+                              Great! I found {message.flightData.flights.length} excellent options for you:
+                            </p>
+                          </div>
 
-                      {/* Personalized Recommendations */}
-                      {message.flightData.recommendations && (
-                        <div className="mb-6 p-4 bg-blue-50 rounded-xl">
-                          <h4 className="font-semibold mb-3 text-blue-900">💡 Personalized Recommendations</h4>
-                          <div className="space-y-2">
-                            {message.flightData.recommendations.map((rec, recIdx) => (
-                              <div key={recIdx} className="flex items-start gap-2 text-sm">
-                                <span>{rec.icon}</span>
-                                <span className="text-gray-700">{rec.text}</span>
+                          {/* Personalized Recommendations */}
+                          {message.flightData.recommendations && (
+                            <div className="mb-6 p-4 bg-blue-50 rounded-xl">
+                              <h4 className="font-semibold mb-3 text-blue-900">💡 Personalized Recommendations</h4>
+                              <div className="space-y-2">
+                                {message.flightData.recommendations.map((rec, recIdx) => (
+                                  <div key={recIdx} className="flex items-start gap-2 text-sm">
+                                    <span>{rec.icon}</span>
+                                    <span className="text-gray-700">{rec.text}</span>
+                                  </div>
+                                ))}
                               </div>
+                            </div>
+                          )}
+
+                          {/* Flight Cards */}
+                          <div className="grid grid-cols-1 gap-6 mb-6">
+                            {message.flightData.flights.map((flight) => (
+                              <FlightCard key={flight.id} flight={flight} />
                             ))}
+                          </div>
+
+                          {/* Conversation prompt */}
+                          <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-xl">
+                            <p className="text-sm text-gray-700">
+                              💬 <strong>Want to know more?</strong> Ask me anything about these flights, or request different options!
+                            </p>
+                            <p className="text-xs text-gray-600 mt-2">
+                              Try: "Which one has the best WiFi?" or "Show me cheaper options" or "What about business class?"
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        /* Show Conversational Response */
+                        <div className="flex justify-start mb-4">
+                          <div className="max-w-3xl px-6 py-4 rounded-2xl bg-white shadow-md">
+                            <p className="text-gray-800 whitespace-pre-wrap">{message.content}</p>
                           </div>
                         </div>
                       )}
-
-                      {/* Flight Cards */}
-                      <div className="grid grid-cols-1 gap-6">
-                        {message.flightData.flights.map((flight, flightIdx) => (
-                          <FlightCard key={flight.id} flight={flight} index={flightIdx} />
-                        ))}
-                      </div>
                     </div>
                   )}
                 </div>
@@ -893,8 +809,9 @@ const App = () => {
                 <button
                   onClick={() => sendMessage()}
                   disabled={isLoading || !inputValue.trim()}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2"
                 >
+                  <Send className="w-4 h-4" />
                   {isLoading ? 'Sending...' : 'Send'}
                 </button>
               </div>
