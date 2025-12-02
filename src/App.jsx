@@ -1023,25 +1023,90 @@ function App() {
     ];
   };
 
+  // Add state for mobile menu
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-40">
+      {/* Header with Top Navigation Bar */}
+      <header className="bg-white shadow-sm border-b sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
+            {/* Logo */}
             <div className="flex items-center gap-2">
               <Plane className="w-8 h-8 text-blue-600" />
               <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 FlightFinder AI
               </h1>
             </div>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-6">
+              <a href="#" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                Flights
+              </a>
+              <a href="#" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                Hotels
+              </a>
+              <a href="#" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                My Trips
+              </a>
+              <a href="#" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                Help
+              </a>
+            </nav>
+
+            {/* Right Side - AI Status + Sign In */}
             <div className="flex items-center gap-4">
-              <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium flex items-center gap-1">
+              {/* AI Active Badge */}
+              <span className="hidden sm:flex px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium items-center gap-1">
                 <Sparkles className="w-4 h-4" />
                 AI Agent Active
               </span>
+
+              {/* Sign In Button */}
+              <button className="hidden md:flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                <User className="w-4 h-4" />
+                Sign In
+              </button>
+
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                {showMobileMenu ? (
+                  <X className="w-6 h-6 text-gray-700" />
+                ) : (
+                  <Menu className="w-6 h-6 text-gray-700" />
+                )}
+              </button>
             </div>
           </div>
+
+          {/* Mobile Menu */}
+          {showMobileMenu && (
+            <div className="md:hidden mt-4 pt-4 border-t">
+              <nav className="flex flex-col gap-3">
+                <a href="#" className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
+                  Flights
+                </a>
+                <a href="#" className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
+                  Hotels
+                </a>
+                <a href="#" className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
+                  My Trips
+                </a>
+                <a href="#" className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
+                  Help
+                </a>
+                <button className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium mt-2">
+                  <User className="w-4 h-4" />
+                  Sign In
+                </button>
+              </nav>
+            </div>
+          )}
         </div>
       </header>
 
