@@ -37,15 +37,79 @@ function App() {
     cabinClass: 'economy'
   });
 
-  // Filter States
+  // Enhanced Filter States (Kayak-style)
   const [priceRange, setPriceRange] = useState([0, 2000]);
   const [stops, setStops] = useState('any');
-  const [departureTime, setDepartureTime] = useState('any');
+  const [departureTime, setDepartureTime] = useState([]);
+  const [arrivalTime, setArrivalTime] = useState([]);
+  const [airlines, setAirlines] = useState([]);
+  const [duration, setDuration] = useState([0, 24]);
+  
+  // Sort State
+  const [sortBy, setSortBy] = useState('best');
+
+  // Function to sort flights
+  const getSortedFlights = () => {
+    let sorted = [...flights];
+    
+    switch(sortBy) {
+      case 'cheapest':
+        sorted.sort((a, b) => a.price - b.price);
+        break;
+      case 'fastest':
+        sorted.sort((a, b) => {
+          const getDuration = (dur) => {
+            const [hours, mins] = dur.match(/\d+/g);
+            return parseInt(hours) * 60 + parseInt(mins);
+          };
+          return getDuration(a.duration) - getDuration(b.duration);
+        });
+        break;
+      case 'best':
+      default:
+        // Best is a combination of price and duration
+        sorted.sort((a, b) => {
+          const getDuration = (dur) => {
+            const [hours, mins] = dur.match(/\d+/g);
+            return parseInt(hours) * 60 + parseInt(mins);
+          };
+          const scoreA = a.price + getDuration(a.duration) * 0.5;
+          const scoreB = b.price + getDuration(b.duration) * 0.5;
+          return scoreA - scoreB;
+        });
+    }
+    
+    return sorted;
+  };
+
+  // Function to filter flights
+  const getFilteredFlights = () => {
+    let filtered = getSortedFlights();
+    
+    // Filter by price
+    filtered = filtered.filter(flight => 
+      flight.price >= priceRange[0] && flight.price <= priceRange[1]
+    );
+    
+    // Filter by stops
+    if (stops === 'nonstop') {
+      filtered = filtered.filter(flight => flight.stops === 'Nonstop');
+    } else if (stops === '1stop') {
+      filtered = filtered.filter(flight => flight.stops.includes('1 stop'));
+    }
+    
+    // Filter by airlines
+    if (airlines.length > 0) {
+      filtered = filtered.filter(flight => airlines.includes(flight.airline));
+    }
+    
+    return filtered;
+  };
 
   // Results State
   const [flights, setFlights] = useState([]);
+  const [allFlights, setAllFlights] = useState([]); // Store original unfiltered flights
   const [loading, setLoading] = useState(false);
-  const [selectedFlight, setSelectedFlight] = useState(null);
 
   useEffect(() => {
     // Check initial session
@@ -53,7 +117,6 @@ function App() {
       setSession(session);
       setUser(session?.user ?? null);
       
-      // Add welcome back message if user is logged in
       if (session?.user) {
         setChatMessages(prev => [...prev, {
           id: Date.now(),
@@ -64,7 +127,6 @@ function App() {
       }
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
@@ -85,6 +147,100 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Filter flights whenever filter state changes
+  useEffect(() => {
+    if (allFlights.length > 0) {
+      let filtered = [...allFlights];
+
+      // Price filter
+      filtered = filtered.filter(f => f.price >= priceRange[0] && f.price <= priceRange[1]);
+
+      // Stops filter
+      if (stops === 'nonstop') {
+        filtered = filtered.filter(f => f.stops === 'Nonstop');
+      } else if (stops === '1stop') {
+        filtered = filtered.filter(f => f.stops === '1 stop');
+      }
+
+      // Airlines filter
+      if (airlines.length > 0) {
+        filtered = filtered.filter(f => airlines.includes(f.airline));
+      }
+
+      // Departure time filter
+      if (departureTime.length > 0) {
+        filtered = filtered.filter(f => {
+          const hour = parseInt(f.departure.split(':')[0]);
+          const isPM = f.departure.includes('PM');
+          const hour24 = isPM && hour !== 12 ? hour + 12 : hour;
+          
+          return departureTime.some(timeSlot => {
+            if (timeSlot === 'morning') return hour24 >= 5 && hour24 < 12;
+            if (timeSlot === 'afternoon') return hour24 >= 12 && hour24 < 18;
+            if (timeSlot === 'evening') return hour24 >= 18 || hour24 < 5;
+            return true;
+          });
+        });
+      }
+
+      // Sort filtered results
+      filtered = sortFlights(filtered, sortBy);
+      
+      setFlights(filtered);
+    }
+  }, [priceRange, stops, airlines, departureTime, arrivalTime, duration, sortBy, allFlights]);
+
+  // Sort function
+  const sortFlights = (flightList, sortType) => {
+    const sorted = [...flightList];
+    
+    switch(sortType) {
+      case 'cheapest':
+        return sorted.sort((a, b) => a.price - b.price);
+      case 'fastest':
+        return sorted.sort((a, b) => {
+          const getDuration = (dur) => {
+            const [hours, mins] = dur.replace('h', '').replace('m', '').split(' ');
+            return parseInt(hours) * 60 + parseInt(mins);
+          };
+          return getDuration(a.duration) - getDuration(b.duration);
+        });
+      case 'best':
+      default:
+        // Best = combination of price, duration, and prediction
+        return sorted.sort((a, b) => {
+          const scoreA = a.price + (a.prediction === 'up' ? 50 : a.prediction === 'down' ? -50 : 0);
+          const scoreB = b.price + (b.prediction === 'up' ? 50 : b.prediction === 'down' ? -50 : 0);
+          return scoreA - scoreB;
+        });
+    }
+  };
+
+  // Toggle functions for filters
+  const toggleAirline = (airline) => {
+    setAirlines(prev => 
+      prev.includes(airline) 
+        ? prev.filter(a => a !== airline)
+        : [...prev, airline]
+    );
+  };
+
+  const toggleDepartureTime = (time) => {
+    setDepartureTime(prev =>
+      prev.includes(time)
+        ? prev.filter(t => t !== time)
+        : [...prev, time]
+    );
+  };
+
+  const toggleArrivalTime = (time) => {
+    setArrivalTime(prev =>
+      prev.includes(time)
+        ? prev.filter(t => t !== time)
+        : [...prev, time]
+    );
+  };
+
   // Chat functionality
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
@@ -100,20 +256,17 @@ function App() {
     setChatInput('');
     setIsTyping(true);
 
-    // Simulate AI processing and extract flight details
     setTimeout(() => {
       const input = chatInput.toLowerCase();
       let aiResponse = '';
       let shouldSearch = false;
 
-      // Parse the user input for flight details - improved patterns
-      const fromMatch = input.match(/from\s+([a-z]+)/i) || input.match(/\b(jfk|lax|ord|iah|ewr|sfo|atl|den|dfw|bos|mia|lga|phx|iad|sea|mcg|dtw|msp|phl|lax|bwi|mdw|slc|san|tpa|pdx|stl|bna|aus|msy|rdu|sna|oak|mci|cmh|cvg|pit|sat|smf|rsw|ind|cle|pwm|bur|ont|sjc|ric|roc|buf|abq|tul|oma|okc|el)\b/i);
+      const fromMatch = input.match(/from\s+([a-z]+)/i) || input.match(/\b(jfk|lax|ord|iah|ewr|sfo|atl|den|dfw|bos|mia|lga|phx|iad|sea|dtw|msp|phl|bwi|mdw|slc|san|tpa|pdx|stl|bna|aus|msy|rdu|sna|oak|mci|cmh|cvg|pit|sat|smf|rsw|ind|cle|pwm|bur|ont|sjc|ric|roc|buf|abq|tul|oma|okc)\b/i);
       const toMatch = input.match(/to\s+([a-z]+)/i) || input.match(/\b(london|paris|tokyo|delhi|mumbai|dubai|singapore|sydney|lhr|cdg|nrt|del|bom|dxb|sin|syd|hnd|hkg|icn|bkk|kul|cgk|mnl|can|pvg|pek|szx|tpe|mel|bne|akl|per|auh|doh|jed|ruh|ist|fra|ams|mad|bcn|fco|mxp|zrh|vie|cph|arn|osl|hel|waw|prg|bud|ath|lis|dub|man|edi|gla|bru|lux|opo|ncl|bhx|mrs|lys|tls|nce|ber|muc|ham|dus|cgn|stu|han|txl|sxf)\b/i);
       const dateMatch = input.match(/(?:on|dec|december|date)\s+(\d{1,2})/i);
       const passengersMatch = input.match(/(\d+)\s+passenger/i);
 
       if (fromMatch || toMatch || dateMatch) {
-        // Extract details
         const newParams = { ...searchParams };
         if (fromMatch) newParams.from = fromMatch[1].toUpperCase();
         if (toMatch) newParams.to = toMatch[1].toUpperCase();
@@ -126,7 +279,6 @@ function App() {
 
         setSearchParams(newParams);
 
-        // Check if we have enough info to search
         if (newParams.from && newParams.to) {
           shouldSearch = true;
           aiResponse = `Perfect! I've got:\n\n✈️ From: ${newParams.from}\n✈️ To: ${newParams.to}\n📅 Date: ${newParams.departDate || 'Not specified'}\n👥 Passengers: ${newParams.passengers}\n\nSearching for the best flights for you...`;
@@ -147,7 +299,6 @@ function App() {
       setChatMessages(prev => [...prev, aiMessage]);
       setIsTyping(false);
 
-      // If we have enough info, search for flights immediately
       if (shouldSearch) {
         setTimeout(() => handleFlightSearch(), 1000);
       }
@@ -157,7 +308,6 @@ function App() {
   const handleFlightSearch = () => {
     setLoading(true);
     
-    // Simulate API call with realistic flight data
     setTimeout(() => {
       const mockFlights = [
         {
@@ -229,12 +379,58 @@ function App() {
           },
           bookingUrl: 'https://www.aa.com'
         },
+        {
+          id: 4,
+          airline: 'British Airways',
+          logo: '🛫',
+          from: searchParams.from || 'JFK',
+          to: searchParams.to || 'LHR',
+          departure: '06:30 PM',
+          arrival: '06:45 AM',
+          duration: '7h 15m',
+          stops: 'Nonstop',
+          price: 495,
+          prediction: 'down',
+          predictionPercent: 5,
+          predictionText: 'Price likely to drop by 5% - monitor for better deals',
+          aircraft: 'Boeing 747',
+          emission: 'Medium',
+          jetLag: {
+            severity: 'Mild',
+            tips: ['Red-eye helps adjustment', 'Sleep on the plane', 'Breakfast on arrival'],
+            timeDifference: '5 hours ahead'
+          },
+          bookingUrl: 'https://www.britishairways.com'
+        },
+        {
+          id: 5,
+          airline: 'Virgin Atlantic',
+          logo: '✈️',
+          from: searchParams.from || 'JFK',
+          to: searchParams.to || 'LHR',
+          departure: '09:30 PM',
+          arrival: '09:45 AM',
+          duration: '7h 15m',
+          stops: 'Nonstop',
+          price: 475,
+          prediction: 'stable',
+          predictionPercent: 0,
+          predictionText: 'Price stable - book when ready',
+          aircraft: 'Airbus A350',
+          emission: 'Low',
+          jetLag: {
+            severity: 'Mild',
+            tips: ['Overnight flight is ideal', 'Stay awake until evening UK time', 'Light meals'],
+            timeDifference: '5 hours ahead'
+          },
+          bookingUrl: 'https://www.virginatlantic.com'
+        },
       ];
       
-      setFlights(mockFlights);
+      setAllFlights(mockFlights);
+      setFlights(sortFlights(mockFlights, sortBy));
       setLoading(false);
 
-      // Add AI message about results
       setChatMessages(prev => [...prev, {
         id: Date.now(),
         type: 'ai',
@@ -269,6 +465,23 @@ function App() {
     if (e.key === 'Enter') {
       handleSendMessage();
     }
+  };
+
+  // Filter handlers
+  const toggleAirline = (airline) => {
+    setAirlines(prev => 
+      prev.includes(airline) 
+        ? prev.filter(a => a !== airline)
+        : [...prev, airline]
+    );
+  };
+
+  const toggleDepartureTime = (time) => {
+    setDepartureTime(prev => 
+      prev.includes(time)
+        ? prev.filter(t => t !== time)
+        : [...prev, time]
+    );
   };
 
   return (
@@ -365,9 +578,11 @@ function App() {
       {/* Results Section */}
       {flights.length > 0 && (
         <section className="results-section">
+          {/* Enhanced Kayak-style Sidebar */}
           <div className="sidebar">
             <h3>Filters</h3>
 
+            {/* Price Range */}
             <div className="filter-group">
               <h4>Price Range</h4>
               <input
@@ -382,6 +597,7 @@ function App() {
               </div>
             </div>
 
+            {/* Stops */}
             <div className="filter-group">
               <h4>Stops</h4>
               <label>
@@ -402,7 +618,7 @@ function App() {
                   checked={stops === 'nonstop'}
                   onChange={(e) => setStops(e.target.value)}
                 />
-                Nonstop
+                Nonstop only
               </label>
               <label>
                 <input
@@ -412,52 +628,97 @@ function App() {
                   checked={stops === '1stop'}
                   onChange={(e) => setStops(e.target.value)}
                 />
-                1 Stop
+                1 stop or fewer
               </label>
             </div>
 
+            {/* Airlines */}
+            <div className="filter-group">
+              <h4>Airlines</h4>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={airlines.includes('United Airlines')}
+                  onChange={() => toggleAirline('United Airlines')}
+                />
+                United Airlines
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={airlines.includes('Delta Airlines')}
+                  onChange={() => toggleAirline('Delta Airlines')}
+                />
+                Delta Airlines
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={airlines.includes('American Airlines')}
+                  onChange={() => toggleAirline('American Airlines')}
+                />
+                American Airlines
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={airlines.includes('British Airways')}
+                  onChange={() => toggleAirline('British Airways')}
+                />
+                British Airways
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={airlines.includes('Virgin Atlantic')}
+                  onChange={() => toggleAirline('Virgin Atlantic')}
+                />
+                Virgin Atlantic
+              </label>
+            </div>
+
+            {/* Departure Time */}
             <div className="filter-group">
               <h4>Departure Time</h4>
               <label>
                 <input
-                  type="radio"
-                  name="time"
-                  value="any"
-                  checked={departureTime === 'any'}
-                  onChange={(e) => setDepartureTime(e.target.value)}
-                />
-                Any Time
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="time"
-                  value="morning"
-                  checked={departureTime === 'morning'}
-                  onChange={(e) => setDepartureTime(e.target.value)}
+                  type="checkbox"
+                  checked={departureTime.includes('morning')}
+                  onChange={() => toggleDepartureTime('morning')}
                 />
                 Morning (5AM - 12PM)
               </label>
               <label>
                 <input
-                  type="radio"
-                  name="time"
-                  value="afternoon"
-                  checked={departureTime === 'afternoon'}
-                  onChange={(e) => setDepartureTime(e.target.value)}
+                  type="checkbox"
+                  checked={departureTime.includes('afternoon')}
+                  onChange={() => toggleDepartureTime('afternoon')}
                 />
                 Afternoon (12PM - 6PM)
               </label>
               <label>
                 <input
-                  type="radio"
-                  name="time"
-                  value="evening"
-                  checked={departureTime === 'evening'}
-                  onChange={(e) => setDepartureTime(e.target.value)}
+                  type="checkbox"
+                  checked={departureTime.includes('evening')}
+                  onChange={() => toggleDepartureTime('evening')}
                 />
-                Evening (6PM - 12AM)
+                Evening (6PM - 5AM)
               </label>
+            </div>
+
+            {/* Flight Duration */}
+            <div className="filter-group">
+              <h4>Max Duration</h4>
+              <input
+                type="range"
+                min="0"
+                max="24"
+                value={duration[1]}
+                onChange={(e) => setDuration([0, Number(e.target.value)])}
+              />
+              <div className="price-display">
+                Up to {duration[1]} hours
+              </div>
             </div>
           </div>
 
@@ -465,14 +726,29 @@ function App() {
             <div className="results-header">
               <h3>{flights.length} Flights Found</h3>
               <div className="sort-options">
-                <button className="sort-btn active">Best</button>
-                <button className="sort-btn">Cheapest</button>
-                <button className="sort-btn">Fastest</button>
+                <button 
+                  className={`sort-btn ${sortBy === 'best' ? 'active' : ''}`}
+                  onClick={() => setSortBy('best')}
+                >
+                  Best
+                </button>
+                <button 
+                  className={`sort-btn ${sortBy === 'cheapest' ? 'active' : ''}`}
+                  onClick={() => setSortBy('cheapest')}
+                >
+                  Cheapest
+                </button>
+                <button 
+                  className={`sort-btn ${sortBy === 'fastest' ? 'active' : ''}`}
+                  onClick={() => setSortBy('fastest')}
+                >
+                  Fastest
+                </button>
               </div>
             </div>
 
             <div className="flights-list">
-              {flights.map((flight) => (
+              {getFilteredFlights().map((flight) => (
                 <div key={flight.id} className="flight-card">
                   <div className="flight-main">
                     <div className="airline-info">
@@ -489,7 +765,9 @@ function App() {
                         <div className="location">{flight.from}</div>
                       </div>
                       <div className="flight-duration">
-                        <div className="duration-line"></div>
+                        <div className="duration-line">
+                          <div className="plane-icon">✈️</div>
+                        </div>
                         <div className="duration-text">{flight.duration}</div>
                         <div className="stops-info">{flight.stops}</div>
                       </div>
