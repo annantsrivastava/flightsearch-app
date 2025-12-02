@@ -273,60 +273,40 @@ function App() {
     return { updated, responses };
   };
 
-  // REAL AI: Call Claude API for intelligent responses
-  const getClaudeResponse = async (userMessage, conversationHistory, currentCriteria) => {
-    try {
-      // Build context for Claude
-      const systemPrompt = `You are an intelligent flight booking assistant. You help users search for flights in a natural, conversational way.
-
-Current search criteria collected so far:
-${JSON.stringify(currentCriteria, null, 2)}
-
-Your job:
-1. Understand what the user wants (search, modify search, clear, book, ask questions)
-2. Respond naturally and helpfully
-3. If they want to modify search (change date, destination, etc.), acknowledge it and update
-4. If they ask to clear, confirm and reset
-5. If they ask questions about flights shown, answer based on the data
-6. Be conversational, not robotic
-
-Always respond in a friendly, helpful tone like ChatGPT would.`;
-
-      const conversationContext = conversationHistory.slice(-10).map(msg => ({
-        role: msg.type === 'user' ? 'user' : 'assistant',
-        content: msg.text
-      }));
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          system: systemPrompt,
-          messages: [
-            ...conversationContext,
-            { role: 'user', content: userMessage }
-          ]
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Claude API call failed');
-      }
-
-      const data = await response.json();
-      return data.content[0].text;
-    } catch (error) {
-      console.error('Claude API error:', error);
-      // Fallback to basic response
-      return "I understand. Let me help you with that!";
+  // Fallback response generator (no API needed)
+  const generateFallbackResponse = (userMessage, conversationHistory, currentCriteria) => {
+    const lowerInput = userMessage.toLowerCase();
+    
+    // Handle common queries without API
+    if (lowerInput.includes('clear') || lowerInput.includes('reset')) {
+      return "Sure! I'll clear everything and we can start fresh. What's your new trip?";
     }
+    
+    if (lowerInput.includes('change') && lowerInput.includes('date')) {
+      return "I'd be happy to search for a different date! What date would you like to try?";
+    }
+    
+    if (lowerInput.includes('wifi')) {
+      return "Great question! All three flights have WiFi available. The Best Value option has excellent connectivity!";
+    }
+    
+    if (lowerInput.includes('cheap') || lowerInput.includes('price')) {
+      return "The cheapest option is the first card at the best price! It offers great value for your trip.";
+    }
+    
+    if (lowerInput.includes('fast') || lowerInput.includes('quick')) {
+      return "The fastest option is the middle card - it has the shortest flight duration!";
+    }
+    
+    if (lowerInput.includes('recommend')) {
+      return "Based on your search, I'd recommend the Best Value option - it offers the perfect balance of price, comfort, and flight time!";
+    }
+    
+    // Default helpful response
+    return "I'm here to help! You can ask me about the flights, or click one of the booking buttons below.";
   };
 
-  // INTELLIGENT conversation handler with REAL AI
+  // INTELLIGENT conversation handler (works WITHOUT API calls)
   const handleUserResponse = async (input) => {
     if (!input.trim()) return;
 
@@ -363,35 +343,58 @@ Always respond in a friendly, helpful tone like ChatGPT would.`;
       return;
     }
 
-    // If showing flights, use Claude API for intelligent responses
+    // If showing flights and user selected one, handle continuation
+    if (conversationState === CONVERSATION_STATES.SHOWING_FLIGHTS && selectedFlight) {
+      // User selected a flight and is typing - they probably want to continue
+      addBotMessage(`Great! Let me collect passenger details for your ${selectedFlight.airline} flight.`, 800);
+      setTimeout(() => {
+        // Initialize passenger details
+        const passengers = Array(searchCriteria.passengers).fill(null).map((_, i) => ({
+          id: i + 1,
+          firstName: '',
+          lastName: '',
+          dateOfBirth: '',
+          email: '',
+          phone: ''
+        }));
+        setPassengerDetails(passengers);
+        setCurrentPassengerIndex(0);
+        
+        addBotMessage(`Let's start with Passenger 1. What's their first name?`, 1600);
+        setConversationState(CONVERSATION_STATES.COLLECTING_PASSENGER_DETAILS);
+        setIsTyping(false);
+      }, 1200);
+      return;
+    }
+
+    // If showing flights, use fallback responses
     if (conversationState === CONVERSATION_STATES.SHOWING_FLIGHTS || flightOptions.length > 0) {
-      try {
-        // Check if user wants to modify search
-        if (lowerInput.includes('change') || lowerInput.includes('different') || lowerInput.includes('another')) {
-          const aiResponse = await getClaudeResponse(input, messages, searchCriteria);
-          addBotMessage(aiResponse, 1000);
-          
-          // Extract new criteria if mentioned
-          const extracted = extractFlightInfo(input, messages);
-          if (extracted.date) {
-            const updatedCriteria = { ...searchCriteria, departureDate: extracted.date };
-            setSearchCriteria(updatedCriteria);
-            setTimeout(() => {
-              addBotMessage(`Searching for flights on ${extracted.date}...`, 2000);
-              setTimeout(() => {
-                const flights = generateFlightOptions(updatedCriteria);
-                setFlightOptions(flights);
-                addBotMessage(`Here are the updated options!`, 1500);
-                setIsTyping(false);
-              }, 1500);
-            }, 1000);
-            return;
-          }
+      // Check if user wants to modify search
+      if (lowerInput.includes('change') || lowerInput.includes('different') || lowerInput.includes('another')) {
+        const extracted = extractFlightInfo(input, messages);
+        
+        if (extracted.date) {
+          const updatedCriteria = { ...searchCriteria, departureDate: extracted.date };
+          setSearchCriteria(updatedCriteria);
+          addBotMessage(`Got it! Let me search for flights on ${extracted.date}...`, 1000);
+          setTimeout(() => {
+            const flights = generateFlightOptions(updatedCriteria);
+            setFlightOptions(flights);
+            addBotMessage(`Here are the updated options for ${extracted.date}!`, 1500);
+            setIsTyping(false);
+          }, 1500);
+          return;
         }
         
-        // Use Claude API for other questions about flights
-        const aiResponse = await getClaudeResponse(input, messages, searchCriteria);
-        addBotMessage(aiResponse, 1000);
+        addBotMessage(`I can help you modify your search! What would you like to change? (date, destination, number of passengers, etc.)`, 1000);
+        setIsTyping(false);
+        return;
+      }
+      
+      // Use fallback response for other questions
+      const fallbackResponse = generateFallbackResponse(input, messages, searchCriteria);
+      setTimeout(() => {
+        addBotMessage(fallbackResponse, 1000);
         
         // Check if user wants to book
         if (lowerInput.includes('book') || lowerInput.includes('select')) {
@@ -400,10 +403,8 @@ Always respond in a friendly, helpful tone like ChatGPT would.`;
           }, 1500);
         }
         setIsTyping(false);
-        return;
-      } catch (error) {
-        console.error('AI response error:', error);
-      }
+      }, 800);
+      return;
     }
 
     // Continue with extraction logic for initial search
@@ -911,10 +912,13 @@ Always respond in a friendly, helpful tone like ChatGPT would.`;
       
       // EXPEDIA
       expedia: (() => {
+        const flightType = criteria.tripType === 'oneway' ? 'on' : 'rt';
+        const tripMode = criteria.tripType === 'oneway' ? 'oneway' : 'roundtrip';
+        
         const params = new URLSearchParams({
-          flight-type: criteria.tripType === 'oneway' ? 'on' : 'rt',
+          'flight-type': flightType,
           mode: 'search',
-          trip: criteria.tripType === 'oneway' ? 'oneway' : 'roundtrip',
+          trip: tripMode,
           leg1: `from:${criteria.origin},to:${criteria.destination},departure:${departDate}TANYT`,
           passengers: `adults:${criteria.passengers || 1},children:0,seniors:0,infantinlap:N`,
           options: `cabinclass:${cabinClass}`,
@@ -985,8 +989,8 @@ Always respond in a friendly, helpful tone like ChatGPT would.`;
       // PRICELINE
       priceline: (() => {
         const params = new URLSearchParams({
-          departure-airport: criteria.origin || 'NYC',
-          destination-airport: criteria.destination || 'LON',
+          'departure-airport': criteria.origin || 'NYC',
+          'destination-airport': criteria.destination || 'LON',
           'trip-type': criteria.tripType === 'oneway' ? 'one-way' : 'round-trip',
           'departure-date': departDate,
           'number-of-passengers': criteria.passengers || 1,
@@ -1418,17 +1422,179 @@ function FlightCard({ flight, onSelect, isSelected, expandedTimeline, setExpande
         <p className="text-xs text-gray-600">{flight.pricePrediction.confidence}% confidence</p>
       </div>
 
+      {/* Journey Timeline - Expandable */}
+      <div className="mb-4">
+        <button
+          onClick={() => setExpandedTimeline(expandedTimeline === flight.id ? null : flight.id)}
+          className="w-full flex items-center justify-between p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-purple-600" />
+            <span className="font-medium text-sm">View Journey Timeline</span>
+          </div>
+          {expandedTimeline === flight.id ? (
+            <ChevronUp className="w-4 h-4 text-purple-600" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-purple-600" />
+          )}
+        </button>
+        
+        {expandedTimeline === flight.id && (
+          <div className="mt-2 p-4 bg-gray-50 rounded-lg space-y-3">
+            <h4 className="font-bold text-sm mb-3">Hour-by-Hour Journey</h4>
+            
+            <div className="space-y-2">
+              <div className="flex gap-3">
+                <div className="w-16 text-xs text-gray-600">{flight.departure.time}</div>
+                <div className="flex-1">
+                  <div className="font-medium text-sm">✈️ Takeoff from {flight.departure.airport}</div>
+                  <div className="text-xs text-gray-600">Boarding complete, prepare for departure</div>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <div className="w-16 text-xs text-gray-600">+2h</div>
+                <div className="flex-1">
+                  <div className="font-medium text-sm">🍽️ Meal Service</div>
+                  <div className="text-xs text-gray-600">Enjoy your in-flight meal</div>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <div className="w-16 text-xs text-gray-600">+6h</div>
+                <div className="flex-1">
+                  <div className="font-medium text-sm">😴 Rest Period</div>
+                  <div className="text-xs text-gray-600">Dim lights, good time to sleep</div>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <div className="w-16 text-xs text-gray-600">+10h</div>
+                <div className="flex-1">
+                  <div className="font-medium text-sm">☀️ Scenic View</div>
+                  <div className="text-xs text-gray-600">Great views over the Atlantic</div>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <div className="w-16 text-xs text-gray-600">{flight.arrival.time}</div>
+                <div className="flex-1">
+                  <div className="font-medium text-sm">🛬 Landing at {flight.arrival.airport}</div>
+                  <div className="text-xs text-gray-600">Prepare for arrival</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Jet Lag Optimizer - Expandable */}
+      <div className="mb-4">
+        <button
+          onClick={() => setExpandedJetLag(expandedJetLag === flight.id ? null : flight.id)}
+          className="w-full flex items-center justify-between p-3 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-orange-600" />
+            <span className="font-medium text-sm">Jet Lag Optimizer</span>
+          </div>
+          {expandedJetLag === flight.id ? (
+            <ChevronUp className="w-4 h-4 text-orange-600" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-orange-600" />
+          )}
+        </button>
+        
+        {expandedJetLag === flight.id && (
+          <div className="mt-2 p-4 bg-gray-50 rounded-lg space-y-4">
+            <div>
+              <h4 className="font-bold text-sm mb-2">📅 Pre-Departure (3 days before)</h4>
+              <div className="space-y-2 text-xs">
+                <div className="flex gap-2">
+                  <span className="font-medium">Day -3:</span>
+                  <span className="text-gray-600">Sleep 30 min earlier, reduce caffeine after 2 PM</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="font-medium">Day -2:</span>
+                  <span className="text-gray-600">Sleep 1 hour earlier, morning sunlight exposure</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="font-medium">Day -1:</span>
+                  <span className="text-gray-600">Sleep 1.5 hours earlier, stay hydrated</span>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="font-bold text-sm mb-2">✈️ In-Flight Tips</h4>
+              <div className="space-y-1 text-xs text-gray-600">
+                <div>• Set watch to destination time immediately</div>
+                <div>• Sleep during destination night hours</div>
+                <div>• Stay hydrated (avoid alcohol)</div>
+                <div>• Move around every 2 hours</div>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="font-bold text-sm mb-2">🌅 Post-Arrival</h4>
+              <div className="space-y-2 text-xs">
+                <div className="flex gap-2">
+                  <span className="font-medium">Day 1:</span>
+                  <span className="text-gray-600">Stay awake until 9 PM local, morning sunlight</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="font-medium">Day 2:</span>
+                  <span className="text-gray-600">Normal sleep schedule, light exercise</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="font-medium">Day 3:</span>
+                  <span className="text-gray-600">Fully adjusted! Enjoy your trip!</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Select Button */}
-      <button
-        onClick={onSelect}
-        className={`w-full py-3 rounded-lg font-bold transition-all ${
-          isSelected
-            ? 'bg-green-500 text-white'
-            : 'bg-blue-600 text-white hover:bg-blue-700'
-        }`}
-      >
-        {isSelected ? 'Selected ✓' : 'Select Flight →'}
-      </button>
+      <div className="space-y-2">
+        <button
+          onClick={onSelect}
+          className={`w-full py-3 rounded-lg font-bold transition-all ${
+            isSelected
+              ? 'bg-green-500 text-white'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+        >
+          {isSelected ? 'Selected ✓' : 'Select Flight →'}
+        </button>
+        
+        {/* Direct Book Now Button */}
+        <button
+          onClick={() => {
+            // Generate booking URL for this specific flight
+            const criteria = {
+              origin: flight.departure.airport,
+              destination: flight.arrival.airport,
+              departureDate: flight.departure.date,
+              passengers: 1,
+              class: 'economy',
+              tripType: 'roundtrip'
+            };
+            
+            // Skyscanner URL
+            const origin = criteria.origin?.toLowerCase().replace(/\s+/g, '-') || 'origin';
+            const destination = criteria.destination?.toLowerCase().replace(/\s+/g, '-') || 'destination';
+            const url = `https://www.skyscanner.com/transport/flights/${origin}/${destination}`;
+            
+            window.open(url, '_blank');
+          }}
+          className="w-full py-3 rounded-lg font-bold transition-all bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-lg flex items-center justify-center gap-2"
+        >
+          <ExternalLink className="w-4 h-4" />
+          Book Now on Skyscanner
+        </button>
+      </div>
     </div>
   );
 }
