@@ -467,23 +467,6 @@ function App() {
     }
   };
 
-  // Filter handlers
-  const toggleAirline = (airline) => {
-    setAirlines(prev => 
-      prev.includes(airline) 
-        ? prev.filter(a => a !== airline)
-        : [...prev, airline]
-    );
-  };
-
-  const toggleDepartureTime = (time) => {
-    setDepartureTime(prev => 
-      prev.includes(time)
-        ? prev.filter(t => t !== time)
-        : [...prev, time]
-    );
-  };
-
   return (
     <div className="app">
       {/* Header */}
