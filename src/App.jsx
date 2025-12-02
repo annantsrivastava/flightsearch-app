@@ -1,891 +1,906 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient';
-import MyAccount from './components/MyAccount';
-import './App.css';
-
-function App() {
-  const [session, setSession] = useState(null);
-  const [user, setUser] = useState(null);
-  const [showSignIn, setShowSignIn] = useState(false);
-  const [showMyAccount, setShowMyAccount] = useState(false);
-
-  // Chat States
-  const [chatMessages, setChatMessages] = useState([
-    {
-      id: 1,
-      type: 'ai',
-      text: "Hi! I'm your AI travel agent, and I'm here to help you find the perfect flight!",
-      timestamp: '12:13 PM'
-    },
-    {
-      id: 2,
-      type: 'ai',
-      text: 'You can tell me your trip details however you like! For example:\n\n🎯 All at once: "I want to fly from New York to London on Dec 15, returning Dec 22, 2 passengers, economy"\n\n🎯 Or just start: "London on Dec 23rd"\n\nI\'ll figure out what you mean and ask about anything I\'m missing. What\'s your trip?',
-      timestamp: '12:13 PM'
-    }
-  ]);
-  const [chatInput, setChatInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-
-  // Search & Filter States
-  const [searchParams, setSearchParams] = useState({
-    from: '',
-    to: '',
-    departDate: '',
-    returnDate: '',
-    passengers: 1,
-    cabinClass: 'economy'
-  });
-
-  // Enhanced Filter States (Kayak-style)
-  const [priceRange, setPriceRange] = useState([0, 2000]);
-  const [stops, setStops] = useState('any');
-  const [departureTime, setDepartureTime] = useState([]);
-  const [arrivalTime, setArrivalTime] = useState([]);
-  const [airlines, setAirlines] = useState([]);
-  const [duration, setDuration] = useState([0, 24]);
-  
-  // Sort State
-  const [sortBy, setSortBy] = useState('best');
-
-  // Function to sort flights
-  const getSortedFlights = () => {
-    let sorted = [...flights];
-    
-    switch(sortBy) {
-      case 'cheapest':
-        sorted.sort((a, b) => a.price - b.price);
-        break;
-      case 'fastest':
-        sorted.sort((a, b) => {
-          const getDuration = (dur) => {
-            const [hours, mins] = dur.match(/\d+/g);
-            return parseInt(hours) * 60 + parseInt(mins);
-          };
-          return getDuration(a.duration) - getDuration(b.duration);
-        });
-        break;
-      case 'best':
-      default:
-        // Best is a combination of price and duration
-        sorted.sort((a, b) => {
-          const getDuration = (dur) => {
-            const [hours, mins] = dur.match(/\d+/g);
-            return parseInt(hours) * 60 + parseInt(mins);
-          };
-          const scoreA = a.price + getDuration(a.duration) * 0.5;
-          const scoreB = b.price + getDuration(b.duration) * 0.5;
-          return scoreA - scoreB;
-        });
-    }
-    
-    return sorted;
-  };
-
-  // Function to filter flights
-  const getFilteredFlights = () => {
-    let filtered = getSortedFlights();
-    
-    // Filter by price
-    filtered = filtered.filter(flight => 
-      flight.price >= priceRange[0] && flight.price <= priceRange[1]
-    );
-    
-    // Filter by stops
-    if (stops === 'nonstop') {
-      filtered = filtered.filter(flight => flight.stops === 'Nonstop');
-    } else if (stops === '1stop') {
-      filtered = filtered.filter(flight => flight.stops.includes('1 stop'));
-    }
-    
-    // Filter by airlines
-    if (airlines.length > 0) {
-      filtered = filtered.filter(flight => airlines.includes(flight.airline));
-    }
-    
-    return filtered;
-  };
-
-  // Results State
-  const [flights, setFlights] = useState([]);
-  const [allFlights, setAllFlights] = useState([]); // Store original unfiltered flights
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        setChatMessages(prev => [...prev, {
-          id: Date.now(),
-          type: 'ai',
-          text: `Welcome back, ${session.user.user_metadata?.full_name || 'traveler'}! 👍`,
-          timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-        }]);
-      }
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (event === 'SIGNED_IN') {
-        setShowSignIn(false);
-        setChatMessages(prev => [...prev, {
-          id: Date.now(),
-          type: 'ai',
-          text: `Welcome back, ${session.user.user_metadata?.full_name || 'traveler'}! 👍`,
-          timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-        }]);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Filter flights whenever filter state changes
-  useEffect(() => {
-    if (allFlights.length > 0) {
-      let filtered = [...allFlights];
-
-      // Price filter
-      filtered = filtered.filter(f => f.price >= priceRange[0] && f.price <= priceRange[1]);
-
-      // Stops filter
-      if (stops === 'nonstop') {
-        filtered = filtered.filter(f => f.stops === 'Nonstop');
-      } else if (stops === '1stop') {
-        filtered = filtered.filter(f => f.stops === '1 stop');
-      }
-
-      // Airlines filter
-      if (airlines.length > 0) {
-        filtered = filtered.filter(f => airlines.includes(f.airline));
-      }
-
-      // Departure time filter
-      if (departureTime.length > 0) {
-        filtered = filtered.filter(f => {
-          const hour = parseInt(f.departure.split(':')[0]);
-          const isPM = f.departure.includes('PM');
-          const hour24 = isPM && hour !== 12 ? hour + 12 : hour;
-          
-          return departureTime.some(timeSlot => {
-            if (timeSlot === 'morning') return hour24 >= 5 && hour24 < 12;
-            if (timeSlot === 'afternoon') return hour24 >= 12 && hour24 < 18;
-            if (timeSlot === 'evening') return hour24 >= 18 || hour24 < 5;
-            return true;
-          });
-        });
-      }
-
-      // Sort filtered results
-      filtered = sortFlights(filtered, sortBy);
-      
-      setFlights(filtered);
-    }
-  }, [priceRange, stops, airlines, departureTime, arrivalTime, duration, sortBy, allFlights]);
-
-  // Sort function
-  const sortFlights = (flightList, sortType) => {
-    const sorted = [...flightList];
-    
-    switch(sortType) {
-      case 'cheapest':
-        return sorted.sort((a, b) => a.price - b.price);
-      case 'fastest':
-        return sorted.sort((a, b) => {
-          const getDuration = (dur) => {
-            const [hours, mins] = dur.replace('h', '').replace('m', '').split(' ');
-            return parseInt(hours) * 60 + parseInt(mins);
-          };
-          return getDuration(a.duration) - getDuration(b.duration);
-        });
-      case 'best':
-      default:
-        // Best = combination of price, duration, and prediction
-        return sorted.sort((a, b) => {
-          const scoreA = a.price + (a.prediction === 'up' ? 50 : a.prediction === 'down' ? -50 : 0);
-          const scoreB = b.price + (b.prediction === 'up' ? 50 : b.prediction === 'down' ? -50 : 0);
-          return scoreA - scoreB;
-        });
-    }
-  };
-
-  // Toggle functions for filters
-  const toggleAirline = (airline) => {
-    setAirlines(prev => 
-      prev.includes(airline) 
-        ? prev.filter(a => a !== airline)
-        : [...prev, airline]
-    );
-  };
-
-  const toggleDepartureTime = (time) => {
-    setDepartureTime(prev =>
-      prev.includes(time)
-        ? prev.filter(t => t !== time)
-        : [...prev, time]
-    );
-  };
-
-  const toggleArrivalTime = (time) => {
-    setArrivalTime(prev =>
-      prev.includes(time)
-        ? prev.filter(t => t !== time)
-        : [...prev, time]
-    );
-  };
-
-  // Chat functionality
-  const handleSendMessage = async () => {
-    if (!chatInput.trim()) return;
-
-    const userMessage = {
-      id: Date.now(),
-      type: 'user',
-      text: chatInput,
-      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setChatMessages(prev => [...prev, userMessage]);
-    setChatInput('');
-    setIsTyping(true);
-
-    setTimeout(() => {
-      const input = chatInput.toLowerCase();
-      let aiResponse = '';
-      let shouldSearch = false;
-
-      const fromMatch = input.match(/from\s+([a-z]+)/i) || input.match(/\b(jfk|lax|ord|iah|ewr|sfo|atl|den|dfw|bos|mia|lga|phx|iad|sea|dtw|msp|phl|bwi|mdw|slc|san|tpa|pdx|stl|bna|aus|msy|rdu|sna|oak|mci|cmh|cvg|pit|sat|smf|rsw|ind|cle|pwm|bur|ont|sjc|ric|roc|buf|abq|tul|oma|okc)\b/i);
-      const toMatch = input.match(/to\s+([a-z]+)/i) || input.match(/\b(london|paris|tokyo|delhi|mumbai|dubai|singapore|sydney|lhr|cdg|nrt|del|bom|dxb|sin|syd|hnd|hkg|icn|bkk|kul|cgk|mnl|can|pvg|pek|szx|tpe|mel|bne|akl|per|auh|doh|jed|ruh|ist|fra|ams|mad|bcn|fco|mxp|zrh|vie|cph|arn|osl|hel|waw|prg|bud|ath|lis|dub|man|edi|gla|bru|lux|opo|ncl|bhx|mrs|lys|tls|nce|ber|muc|ham|dus|cgn|stu|han|txl|sxf)\b/i);
-      const dateMatch = input.match(/(?:on|dec|december|date)\s+(\d{1,2})/i);
-      const passengersMatch = input.match(/(\d+)\s+passenger/i);
-
-      if (fromMatch || toMatch || dateMatch) {
-        const newParams = { ...searchParams };
-        if (fromMatch) newParams.from = fromMatch[1].toUpperCase();
-        if (toMatch) newParams.to = toMatch[1].toUpperCase();
-        if (dateMatch) {
-          const month = '12';
-          const day = dateMatch[1].padStart(2, '0');
-          newParams.departDate = `2025-${month}-${day}`;
-        }
-        if (passengersMatch) newParams.passengers = parseInt(passengersMatch[1]);
-
-        setSearchParams(newParams);
-
-        if (newParams.from && newParams.to) {
-          shouldSearch = true;
-          aiResponse = `Perfect! I've got:\n\n✈️ From: ${newParams.from}\n✈️ To: ${newParams.to}\n📅 Date: ${newParams.departDate || 'Not specified'}\n👥 Passengers: ${newParams.passengers}\n\nSearching for the best flights for you...`;
-        } else {
-          aiResponse = `Great! I've got some details:\n\n${newParams.from ? `✈️ From: ${newParams.from}\n` : ''}${newParams.to ? `✈️ To: ${newParams.to}\n` : ''}${newParams.departDate ? `📅 Date: ${newParams.departDate}\n` : ''}\n${!newParams.from ? '📍 Where are you flying from?\n' : ''}${!newParams.to ? '📍 Where do you want to go?\n' : ''}`;
-        }
-      } else {
-        aiResponse = "I'd be happy to help you find flights! Could you tell me:\n\n📍 Where are you flying from?\n📍 Where do you want to go?\n📅 What date would you like to travel?";
-      }
-
-      const aiMessage = {
-        id: Date.now() + 1,
-        type: 'ai',
-        text: aiResponse,
-        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-      };
-
-      setChatMessages(prev => [...prev, aiMessage]);
-      setIsTyping(false);
-
-      if (shouldSearch) {
-        setTimeout(() => handleFlightSearch(), 1000);
-      }
-    }, 1500);
-  };
-
-  const handleFlightSearch = () => {
-    setLoading(true);
-    
-    setTimeout(() => {
-      const mockFlights = [
-        {
-          id: 1,
-          airline: 'United Airlines',
-          logo: '🛫',
-          from: searchParams.from || 'JFK',
-          to: searchParams.to || 'LHR',
-          departure: '08:00 AM',
-          arrival: '02:30 PM',
-          duration: '6h 30m',
-          stops: 'Nonstop',
-          price: 459,
-          prediction: 'up',
-          predictionPercent: 12,
-          predictionText: 'Price likely to increase by 12% in next 48hrs',
-          aircraft: 'Boeing 787',
-          emission: 'Low',
-          jetLag: {
-            severity: 'Moderate',
-            tips: ['Adjust sleep 2 days before', 'Stay hydrated', 'Get sunlight on arrival'],
-            timeDifference: '5 hours ahead'
-          },
-          bookingUrl: 'https://www.united.com'
-        },
-        {
-          id: 2,
-          airline: 'Delta Airlines',
-          logo: '✈️',
-          from: searchParams.from || 'JFK',
-          to: searchParams.to || 'LHR',
-          departure: '10:15 AM',
-          arrival: '05:00 PM',
-          duration: '6h 45m',
-          stops: '1 stop',
-          price: 389,
-          prediction: 'down',
-          predictionPercent: 8,
-          predictionText: 'Price likely to drop by 8% - good time to book!',
-          aircraft: 'Airbus A350',
-          emission: 'Medium',
-          jetLag: {
-            severity: 'Moderate',
-            tips: ['Avoid caffeine 6hrs before landing', 'Use sleep mask', 'Stay active during flight'],
-            timeDifference: '5 hours ahead'
-          },
-          bookingUrl: 'https://www.delta.com'
-        },
-        {
-          id: 3,
-          airline: 'American Airlines',
-          logo: '🛩️',
-          from: searchParams.from || 'JFK',
-          to: searchParams.to || 'LHR',
-          departure: '01:00 PM',
-          arrival: '08:15 PM',
-          duration: '7h 15m',
-          stops: 'Nonstop',
-          price: 520,
-          prediction: 'stable',
-          predictionPercent: 0,
-          predictionText: 'Price stable - book anytime this week',
-          aircraft: 'Boeing 777',
-          emission: 'Low',
-          jetLag: {
-            severity: 'Mild',
-            tips: ['Evening arrival helps adjustment', 'Light dinner', 'Go to bed at local time'],
-            timeDifference: '5 hours ahead'
-          },
-          bookingUrl: 'https://www.aa.com'
-        },
-        {
-          id: 4,
-          airline: 'British Airways',
-          logo: '🛫',
-          from: searchParams.from || 'JFK',
-          to: searchParams.to || 'LHR',
-          departure: '06:30 PM',
-          arrival: '06:45 AM',
-          duration: '7h 15m',
-          stops: 'Nonstop',
-          price: 495,
-          prediction: 'down',
-          predictionPercent: 5,
-          predictionText: 'Price likely to drop by 5% - monitor for better deals',
-          aircraft: 'Boeing 747',
-          emission: 'Medium',
-          jetLag: {
-            severity: 'Mild',
-            tips: ['Red-eye helps adjustment', 'Sleep on the plane', 'Breakfast on arrival'],
-            timeDifference: '5 hours ahead'
-          },
-          bookingUrl: 'https://www.britishairways.com'
-        },
-        {
-          id: 5,
-          airline: 'Virgin Atlantic',
-          logo: '✈️',
-          from: searchParams.from || 'JFK',
-          to: searchParams.to || 'LHR',
-          departure: '09:30 PM',
-          arrival: '09:45 AM',
-          duration: '7h 15m',
-          stops: 'Nonstop',
-          price: 475,
-          prediction: 'stable',
-          predictionPercent: 0,
-          predictionText: 'Price stable - book when ready',
-          aircraft: 'Airbus A350',
-          emission: 'Low',
-          jetLag: {
-            severity: 'Mild',
-            tips: ['Overnight flight is ideal', 'Stay awake until evening UK time', 'Light meals'],
-            timeDifference: '5 hours ahead'
-          },
-          bookingUrl: 'https://www.virginatlantic.com'
-        },
-      ];
-      
-      setAllFlights(mockFlights);
-      setFlights(sortFlights(mockFlights, sortBy));
-      setLoading(false);
-
-      setChatMessages(prev => [...prev, {
-        id: Date.now(),
-        type: 'ai',
-        text: `Great news! I found ${mockFlights.length} flights for you. Check out the results below - I've included price predictions and jet lag tips for each flight! 🎉`,
-        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-      }]);
-    }, 2000);
-  };
-
-  const handleOAuthSignIn = async (provider) => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: provider,
-      options: {
-        redirectTo: window.location.origin,
-      },
-    });
-    if (error) console.error('Error signing in:', error.message);
-  };
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setShowMyAccount(false);
-    setChatMessages(prev => [...prev, {
-      id: Date.now(),
-      type: 'ai',
-      text: "You've been signed out. Feel free to search for flights anytime!",
-      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-    }]);
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleSendMessage();
-    }
-  };
-
-  // Filter handlers
-  const toggleAirline = (airline) => {
-    setAirlines(prev => 
-      prev.includes(airline) 
-        ? prev.filter(a => a !== airline)
-        : [...prev, airline]
-    );
-  };
-
-  const toggleDepartureTime = (time) => {
-    setDepartureTime(prev => 
-      prev.includes(time)
-        ? prev.filter(t => t !== time)
-        : [...prev, time]
-    );
-  };
-
-  return (
-    <div className="app">
-      {/* Header */}
-      <header className="header">
-        <div className="header-content">
-          <div className="logo">
-            <span className="logo-icon">✈️</span>
-            <span className="logo-text">FlightFinder AI</span>
-          </div>
-          <nav className="nav">
-            <a href="#flights">Flights</a>
-            <a href="#hotels">Hotels</a>
-            <a href="#trips">My Trips</a>
-            <a href="#help">Help</a>
-          </nav>
-          <div className="header-actions">
-            <button className="ai-agent-btn">
-              <span className="ai-icon">🤖</span> AI Agent Active
-            </button>
-            
-            {!user ? (
-              <button className="sign-in-btn" onClick={() => setShowSignIn(true)}>
-                <span className="user-icon">👤</span> Sign In
-              </button>
-            ) : (
-              <button className="user-account-btn" onClick={() => setShowMyAccount(true)}>
-                <span className="user-icon">👤</span>
-                {user.user_metadata?.full_name || user.email?.split('@')[0] || 'Account'}
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* AI Agent Chat Section */}
-      <section className="ai-chat-section">
-        <div className="ai-chat-header">
-          <div className="ai-avatar">💬</div>
-          <div>
-            <h2>Your AI Travel Agent</h2>
-            <p>I'll help you find and book the perfect flight</p>
-          </div>
-        </div>
-
-        <div className="chat-messages">
-          {chatMessages.map(msg => (
-            <div key={msg.id} className={`message ${msg.type}-message`}>
-              {msg.type === 'ai' && <span className="message-icon">✈️</span>}
-              <div className="message-content">
-                <p style={{ whiteSpace: 'pre-line' }}>{msg.text}</p>
-                <div className="timestamp">{msg.timestamp}</div>
-              </div>
-            </div>
-          ))}
-          {isTyping && (
-            <div className="message ai-message">
-              <span className="message-icon">✈️</span>
-              <div className="message-content">
-                <div className="typing-indicator">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="chat-input-container">
-          <input
-            type="text"
-            className="chat-input"
-            placeholder="Tell me about your trip..."
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-          />
-          <button className="send-btn" onClick={handleSendMessage}>
-            Send
-          </button>
-        </div>
-      </section>
-
-      {/* Loading */}
-      {loading && (
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <p>Finding the best flights for you...</p>
-        </div>
-      )}
-
-      {/* Results Section */}
-      {flights.length > 0 && (
-        <section className="results-section">
-          {/* Enhanced Kayak-style Sidebar */}
-          <div className="sidebar">
-            <h3>Filters</h3>
-
-            {/* Price Range */}
-            <div className="filter-group">
-              <h4>Price Range</h4>
-              <input
-                type="range"
-                min="0"
-                max="2000"
-                value={priceRange[1]}
-                onChange={(e) => setPriceRange([0, Number(e.target.value)])}
-              />
-              <div className="price-display">
-                ${priceRange[0]} - ${priceRange[1]}
-              </div>
-            </div>
-
-            {/* Stops */}
-            <div className="filter-group">
-              <h4>Stops</h4>
-              <label>
-                <input
-                  type="radio"
-                  name="stops"
-                  value="any"
-                  checked={stops === 'any'}
-                  onChange={(e) => setStops(e.target.value)}
-                />
-                Any
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="stops"
-                  value="nonstop"
-                  checked={stops === 'nonstop'}
-                  onChange={(e) => setStops(e.target.value)}
-                />
-                Nonstop only
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="stops"
-                  value="1stop"
-                  checked={stops === '1stop'}
-                  onChange={(e) => setStops(e.target.value)}
-                />
-                1 stop or fewer
-              </label>
-            </div>
-
-            {/* Airlines */}
-            <div className="filter-group">
-              <h4>Airlines</h4>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={airlines.includes('United Airlines')}
-                  onChange={() => toggleAirline('United Airlines')}
-                />
-                United Airlines
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={airlines.includes('Delta Airlines')}
-                  onChange={() => toggleAirline('Delta Airlines')}
-                />
-                Delta Airlines
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={airlines.includes('American Airlines')}
-                  onChange={() => toggleAirline('American Airlines')}
-                />
-                American Airlines
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={airlines.includes('British Airways')}
-                  onChange={() => toggleAirline('British Airways')}
-                />
-                British Airways
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={airlines.includes('Virgin Atlantic')}
-                  onChange={() => toggleAirline('Virgin Atlantic')}
-                />
-                Virgin Atlantic
-              </label>
-            </div>
-
-            {/* Departure Time */}
-            <div className="filter-group">
-              <h4>Departure Time</h4>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={departureTime.includes('morning')}
-                  onChange={() => toggleDepartureTime('morning')}
-                />
-                Morning (5AM - 12PM)
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={departureTime.includes('afternoon')}
-                  onChange={() => toggleDepartureTime('afternoon')}
-                />
-                Afternoon (12PM - 6PM)
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={departureTime.includes('evening')}
-                  onChange={() => toggleDepartureTime('evening')}
-                />
-                Evening (6PM - 5AM)
-              </label>
-            </div>
-
-            {/* Flight Duration */}
-            <div className="filter-group">
-              <h4>Max Duration</h4>
-              <input
-                type="range"
-                min="0"
-                max="24"
-                value={duration[1]}
-                onChange={(e) => setDuration([0, Number(e.target.value)])}
-              />
-              <div className="price-display">
-                Up to {duration[1]} hours
-              </div>
-            </div>
-          </div>
-
-          <div className="results-content">
-            <div className="results-header">
-              <h3>{flights.length} Flights Found</h3>
-              <div className="sort-options">
-                <button 
-                  className={`sort-btn ${sortBy === 'best' ? 'active' : ''}`}
-                  onClick={() => setSortBy('best')}
-                >
-                  Best
-                </button>
-                <button 
-                  className={`sort-btn ${sortBy === 'cheapest' ? 'active' : ''}`}
-                  onClick={() => setSortBy('cheapest')}
-                >
-                  Cheapest
-                </button>
-                <button 
-                  className={`sort-btn ${sortBy === 'fastest' ? 'active' : ''}`}
-                  onClick={() => setSortBy('fastest')}
-                >
-                  Fastest
-                </button>
-              </div>
-            </div>
-
-            <div className="flights-list">
-              {getFilteredFlights().map((flight) => (
-                <div key={flight.id} className="flight-card">
-                  <div className="flight-main">
-                    <div className="airline-info">
-                      <span className="airline-logo">{flight.logo}</span>
-                      <div>
-                        <div className="airline-name">{flight.airline}</div>
-                        <div className="aircraft">{flight.aircraft}</div>
-                      </div>
-                    </div>
-
-                    <div className="flight-times">
-                      <div className="time-block">
-                        <div className="time">{flight.departure}</div>
-                        <div className="location">{flight.from}</div>
-                      </div>
-                      <div className="flight-duration">
-                        <div className="duration-line">
-                          <div className="plane-icon">✈️</div>
-                        </div>
-                        <div className="duration-text">{flight.duration}</div>
-                        <div className="stops-info">{flight.stops}</div>
-                      </div>
-                      <div className="time-block">
-                        <div className="time">{flight.arrival}</div>
-                        <div className="location">{flight.to}</div>
-                      </div>
-                    </div>
-
-                    <div className="flight-price">
-                      <div className="price">${flight.price}</div>
-                      <div className="price-prediction">
-                        {flight.prediction === 'up' && (
-                          <span className="pred-up">
-                            📈 +{flight.predictionPercent}% likely
-                          </span>
-                        )}
-                        {flight.prediction === 'down' && (
-                          <span className="pred-down">
-                            📉 -{flight.predictionPercent}% likely
-                          </span>
-                        )}
-                        {flight.prediction === 'stable' && (
-                          <span className="pred-stable">📊 Stable</span>
-                        )}
-                      </div>
-                      <div className="emission-badge">{flight.emission} CO₂</div>
-                    </div>
-
-                    <a 
-                      href={flight.bookingUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="select-btn"
-                    >
-                      Book Now →
-                    </a>
-                  </div>
-
-                  {/* Expandable Details */}
-                  <div className="flight-details">
-                    <div className="detail-section">
-                      <h4>💰 Price Prediction</h4>
-                      <p>{flight.predictionText}</p>
-                    </div>
-                    
-                    <div className="detail-section">
-                      <h4>😴 Jet Lag Optimizer</h4>
-                      <p><strong>Severity:</strong> {flight.jetLag.severity}</p>
-                      <p><strong>Time Difference:</strong> {flight.jetLag.timeDifference}</p>
-                      <div className="jet-lag-tips">
-                        <strong>Tips:</strong>
-                        <ul>
-                          {flight.jetLag.tips.map((tip, idx) => (
-                            <li key={idx}>{tip}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-
-                    <div className="detail-section">
-                      <h4>✈️ Flight Details</h4>
-                      <p><strong>Aircraft:</strong> {flight.aircraft}</p>
-                      <p><strong>Carbon Emissions:</strong> {flight.emission}</p>
-                      <p><strong>Stops:</strong> {flight.stops}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Sign In Modal */}
-      {showSignIn && (
-        <div className="modal-overlay" onClick={() => setShowSignIn(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setShowSignIn(false)}>
-              ×
-            </button>
-            <h2>Sign In to FlightFinder AI</h2>
-            <p className="modal-subtitle">Continue with your preferred account</p>
-
-            <div className="oauth-buttons">
-              <button className="oauth-btn google" onClick={() => handleOAuthSignIn('google')}>
-                <span className="oauth-icon">G</span>
-                Continue with Google
-              </button>
-              <button className="oauth-btn github" onClick={() => handleOAuthSignIn('github')}>
-                <span className="oauth-icon">⚫</span>
-                Continue with GitHub
-              </button>
-              <button className="oauth-btn azure" onClick={() => handleOAuthSignIn('azure')}>
-                <span className="oauth-icon">🔷</span>
-                Continue with Microsoft
-              </button>
-            </div>
-
-            <div className="modal-footer">
-              <p>
-                By continuing, you agree to our Terms of Service and Privacy Policy
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* My Account Modal */}
-      {showMyAccount && (
-        <MyAccount
-          user={user}
-          onClose={() => setShowMyAccount(false)}
-          onSignOut={handleSignOut}
-        />
-      )}
-    </div>
-  );
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-export default App;
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #f5f7fa;
+}
+
+.app {
+  min-height: 100vh;
+}
+
+/* Header */
+.header {
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #2563eb;
+}
+
+.logo-icon {
+  font-size: 2rem;
+}
+
+.nav {
+  display: flex;
+  gap: 2rem;
+}
+
+.nav a {
+  text-decoration: none;
+  color: #4b5563;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.nav a:hover {
+  color: #2563eb;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.ai-agent-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: transform 0.2s;
+}
+
+.ai-agent-btn:hover {
+  transform: translateY(-2px);
+}
+
+.ai-icon {
+  font-size: 1.2rem;
+}
+
+.sign-in-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 0.5rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.2s;
+}
+
+.sign-in-btn:hover {
+  background: #1d4ed8;
+}
+
+/* User Account Button */
+.user-account-btn {
+  background: #f3f4f6;
+  color: #1f2937;
+  border: 2px solid #e5e7eb;
+  padding: 0.5rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.user-account-btn:hover {
+  background: #e5e7eb;
+  border-color: #2563eb;
+}
+
+.user-icon {
+  font-size: 1.2rem;
+}
+
+/* AI Chat Section */
+.ai-chat-section {
+  max-width: 1000px;
+  margin: 2rem auto;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 2rem;
+  color: white;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.ai-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.ai-avatar {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+.ai-chat-header h2 {
+  font-size: 1.8rem;
+  margin-bottom: 0.25rem;
+}
+
+.ai-chat-header p {
+  opacity: 0.9;
+  font-size: 1rem;
+}
+
+.chat-messages {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.message {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.message:last-child {
+  margin-bottom: 0;
+}
+
+.ai-message {
+  align-items: flex-start;
+}
+
+.message-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.message-content {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 1rem;
+  border-radius: 12px;
+  flex: 1;
+}
+
+.message-content p {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.message-content p:last-of-type {
+  margin-bottom: 0;
+}
+
+.example-queries {
+  margin: 1rem 0;
+}
+
+.example {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  border-left: 3px solid rgba(255, 255, 255, 0.5);
+}
+
+.timestamp {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin-top: 0.5rem;
+}
+
+.typing-indicator {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem 0;
+}
+
+.typing-indicator span {
+  width: 8px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  animation: typing 1.4s infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%, 60%, 100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-10px);
+  }
+}
+
+.user-message {
+  flex-direction: row-reverse;
+}
+
+.user-message .message-content {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.chat-input-container {
+  display: flex;
+  gap: 1rem;
+}
+
+.chat-input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.chat-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.send-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.send-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Search Section */
+.search-section {
+  max-width: 1200px;
+  margin: 2rem auto;
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.trip-type-selector {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.trip-type-selector button {
+  padding: 0.5rem 1.5rem;
+  border: 2px solid #e5e7eb;
+  background: white;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.trip-type-selector button.active {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+.search-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.form-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-field label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.form-field input,
+.form-field select {
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.form-field input:focus,
+.form-field select:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.search-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  height: fit-content;
+}
+
+.search-btn:hover {
+  background: #1d4ed8;
+}
+
+/* Loading */
+.loading-container {
+  text-align: center;
+  padding: 3rem;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f4f6;
+  border-top: 5px solid #2563eb;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Results Section */
+.results-section {
+  max-width: 1400px;
+  margin: 2rem auto;
+  display: flex;
+  gap: 2rem;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 280px;
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  height: fit-content;
+  position: sticky;
+  top: 100px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar h3 {
+  margin-bottom: 1.5rem;
+  color: #1f2937;
+}
+
+.filter-group {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.filter-group:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.filter-group h4 {
+  margin-bottom: 1rem;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.filter-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  color: #4b5563;
+}
+
+.filter-group input[type='radio'],
+.filter-group input[type='checkbox'] {
+  cursor: pointer;
+}
+
+.filter-group input[type='range'] {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.price-display {
+  font-weight: 600;
+  color: #2563eb;
+}
+
+/* Results Content */
+.results-content {
+  flex: 1;
+}
+
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.results-header h3 {
+  color: #1f2937;
+}
+
+.sort-options {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.sort-btn {
+  padding: 0.5rem 1rem;
+  border: 2px solid #e5e7eb;
+  background: white;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sort-btn.active {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+/* Flight Cards */
+.flights-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.flight-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.flight-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.flight-main {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.airline-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 180px;
+}
+
+.airline-logo {
+  font-size: 2rem;
+}
+
+.airline-name {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.aircraft {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.flight-times {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.time-block {
+  text-align: center;
+}
+
+.time {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.location {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.flight-duration {
+  flex: 1;
+  text-align: center;
+  position: relative;
+}
+
+.duration-line {
+  height: 2px;
+  background: linear-gradient(to right, #e5e7eb, #2563eb, #e5e7eb);
+  margin-bottom: 0.5rem;
+  position: relative;
+}
+
+.plane-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.2rem;
+  background: white;
+  padding: 0 4px;
+  color: #2563eb;
+}
+
+.duration-text {
+  font-size: 0.875rem;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+.stops-info {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.flight-price {
+  text-align: right;
+  min-width: 150px;
+}
+
+.price {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #2563eb;
+  margin-bottom: 0.25rem;
+}
+
+.price-prediction {
+  font-size: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.pred-up {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.pred-down {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.pred-stable {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.emission-badge {
+  display: inline-block;
+  background: #dcfce7;
+  color: #16a34a;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.select-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.select-btn:hover {
+  background: #1d4ed8;
+  transform: translateX(2px);
+}
+
+.flight-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #e5e7eb;
+}
+
+.detail-section {
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.detail-section h4 {
+  color: #1f2937;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+}
+
+.detail-section p {
+  color: #4b5563;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+
+.detail-section p:last-child {
+  margin-bottom: 0;
+}
+
+.jet-lag-tips {
+  margin-top: 0.75rem;
+}
+
+.jet-lag-tips strong {
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.jet-lag-tips ul {
+  margin-top: 0.5rem;
+  margin-left: 1.25rem;
+  color: #4b5563;
+}
+
+.jet-lag-tips li {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin-bottom: 0.25rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  max-width: 450px;
+  width: 90%;
+  position: relative;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #6b7280;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.modal-close:hover {
+  background: #f3f4f6;
+}
+
+.modal h2 {
+  margin-bottom: 0.5rem;
+  color: #1f2937;
+}
+
+.modal-subtitle {
+  color: #6b7280;
+  margin-bottom: 2rem;
+}
+
+.oauth-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.oauth-btn {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #e5e7eb;
+  background: white;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.oauth-btn:hover {
+  border-color: #2563eb;
+  background: #f9fafb;
+}
+
+.oauth-icon {
+  font-size: 1.25rem;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-footer {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.modal-footer p {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .results-section {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .nav {
+    gap: 1rem;
+  }
+
+  .form-row {
+    flex-direction: column;
+  }
+
+  .flight-main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .flight-times {
+    width: 100%;
+  }
+
+  .flight-price {
+    width: 100%;
+    text-align: left;
+  }
+}
