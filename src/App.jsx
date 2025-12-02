@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import MyAccount from './components/MyAccount';
+import AdsSidebar from './components/AdsSidebar';
 import './App.css';
 
 function App() {
@@ -501,8 +502,11 @@ function App() {
         </div>
       </header>
 
-      {/* AI Agent Chat Section */}
-      <section className="ai-chat-section">
+      {/* Main Container with Ads */}
+      <div className="main-container">
+        <div className="content-area">
+          {/* AI Agent Chat Section */}
+          <section className="ai-chat-section">
         <div className="ai-chat-header">
           <div className="ai-avatar">💬</div>
           <div>
@@ -824,6 +828,13 @@ function App() {
           </div>
         </section>
       )}
+
+      </div> {/* End content-area */}
+
+      {/* Ads Sidebar */}
+      <AdsSidebar />
+
+      </div> {/* End main-container */}
 
       {/* Sign In Modal */}
       {showSignIn && (
