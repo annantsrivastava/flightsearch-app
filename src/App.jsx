@@ -6,7 +6,7 @@ import {
   CheckCircle, ArrowRight, Copy, ExternalLink, Sparkles,
   Menu, X, Search, Filter, Globe
 } from 'lucide-react';
-
+import { supabase, getCurrentUser, saveTrip } from './supabaseClient';
 // Conversation states
 const CONVERSATION_STATES = {
   GREETING: 'greeting',
