@@ -106,17 +106,17 @@ function App() {
       let aiResponse = '';
       let shouldSearch = false;
 
-      // Parse the user input for flight details
-      const fromMatch = input.match(/from\s+(\w+)/i);
-      const toMatch = input.match(/to\s+(\w+)/i) || input.match(/(\w+)\s+on\s+/i);
-      const dateMatch = input.match(/(?:on|dec|december)\s+(\d+)/i);
+      // Parse the user input for flight details - improved patterns
+      const fromMatch = input.match(/from\s+([a-z]+)/i) || input.match(/\b(jfk|lax|ord|iah|ewr|sfo|atl|den|dfw|bos|mia|lga|phx|iad|sea|mcg|dtw|msp|phl|lax|bwi|mdw|slc|san|tpa|pdx|stl|bna|aus|msy|rdu|sna|oak|mci|cmh|cvg|pit|sat|smf|rsw|ind|cle|pwm|bur|ont|sjc|ric|roc|buf|abq|tul|oma|okc|el)\b/i);
+      const toMatch = input.match(/to\s+([a-z]+)/i) || input.match(/\b(london|paris|tokyo|delhi|mumbai|dubai|singapore|sydney|lhr|cdg|nrt|del|bom|dxb|sin|syd|hnd|hkg|icn|bkk|kul|cgk|mnl|can|pvg|pek|szx|tpe|mel|bne|akl|per|auh|doh|jed|ruh|ist|fra|ams|mad|bcn|fco|mxp|zrh|vie|cph|arn|osl|hel|waw|prg|bud|ath|lis|dub|man|edi|gla|bru|lux|opo|ncl|bhx|mrs|lys|tls|nce|ber|muc|ham|dus|cgn|stu|han|txl|sxf)\b/i);
+      const dateMatch = input.match(/(?:on|dec|december|date)\s+(\d{1,2})/i);
       const passengersMatch = input.match(/(\d+)\s+passenger/i);
 
       if (fromMatch || toMatch || dateMatch) {
         // Extract details
         const newParams = { ...searchParams };
-        if (fromMatch) newParams.from = fromMatch[1];
-        if (toMatch) newParams.to = toMatch[1];
+        if (fromMatch) newParams.from = fromMatch[1].toUpperCase();
+        if (toMatch) newParams.to = toMatch[1].toUpperCase();
         if (dateMatch) {
           const month = '12';
           const day = dateMatch[1].padStart(2, '0');
@@ -125,9 +125,14 @@ function App() {
         if (passengersMatch) newParams.passengers = parseInt(passengersMatch[1]);
 
         setSearchParams(newParams);
-        shouldSearch = true;
 
-        aiResponse = `Perfect! I've got:\n\n✈️ From: ${newParams.from || 'Not specified'}\n✈️ To: ${newParams.to || 'Not specified'}\n📅 Date: ${newParams.departDate || 'Not specified'}\n👥 Passengers: ${newParams.passengers}\n\nSearching for the best flights for you...`;
+        // Check if we have enough info to search
+        if (newParams.from && newParams.to) {
+          shouldSearch = true;
+          aiResponse = `Perfect! I've got:\n\n✈️ From: ${newParams.from}\n✈️ To: ${newParams.to}\n📅 Date: ${newParams.departDate || 'Not specified'}\n👥 Passengers: ${newParams.passengers}\n\nSearching for the best flights for you...`;
+        } else {
+          aiResponse = `Great! I've got some details:\n\n${newParams.from ? `✈️ From: ${newParams.from}\n` : ''}${newParams.to ? `✈️ To: ${newParams.to}\n` : ''}${newParams.departDate ? `📅 Date: ${newParams.departDate}\n` : ''}\n${!newParams.from ? '📍 Where are you flying from?\n' : ''}${!newParams.to ? '📍 Where do you want to go?\n' : ''}`;
+        }
       } else {
         aiResponse = "I'd be happy to help you find flights! Could you tell me:\n\n📍 Where are you flying from?\n📍 Where do you want to go?\n📅 What date would you like to travel?";
       }
@@ -142,8 +147,8 @@ function App() {
       setChatMessages(prev => [...prev, aiMessage]);
       setIsTyping(false);
 
-      // If we have enough info, search for flights
-      if (shouldSearch && searchParams.from && searchParams.to) {
+      // If we have enough info, search for flights immediately
+      if (shouldSearch) {
         setTimeout(() => handleFlightSearch(), 1000);
       }
     }, 1500);
