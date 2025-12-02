@@ -9,30 +9,59 @@ function App() {
   const [showSignIn, setShowSignIn] = useState(false);
   const [showMyAccount, setShowMyAccount] = useState(false);
 
+  // Chat States
+  const [chatMessages, setChatMessages] = useState([
+    {
+      id: 1,
+      type: 'ai',
+      text: "Hi! I'm your AI travel agent, and I'm here to help you find the perfect flight!",
+      timestamp: '12:13 PM'
+    },
+    {
+      id: 2,
+      type: 'ai',
+      text: 'You can tell me your trip details however you like! For example:\n\n🎯 All at once: "I want to fly from New York to London on Dec 15, returning Dec 22, 2 passengers, economy"\n\n🎯 Or just start: "London on Dec 23rd"\n\nI\'ll figure out what you mean and ask about anything I\'m missing. What\'s your trip?',
+      timestamp: '12:13 PM'
+    }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+
   // Search & Filter States
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [departDate, setDepartDate] = useState('');
-  const [returnDate, setReturnDate] = useState('');
-  const [passengers, setPassengers] = useState(1);
-  const [tripType, setTripType] = useState('roundtrip');
-  const [cabinClass, setCabinClass] = useState('economy');
+  const [searchParams, setSearchParams] = useState({
+    from: '',
+    to: '',
+    departDate: '',
+    returnDate: '',
+    passengers: 1,
+    cabinClass: 'economy'
+  });
 
   // Filter States
   const [priceRange, setPriceRange] = useState([0, 2000]);
   const [stops, setStops] = useState('any');
-  const [airlines, setAirlines] = useState([]);
   const [departureTime, setDepartureTime] = useState('any');
 
   // Results State
   const [flights, setFlights] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedFlight, setSelectedFlight] = useState(null);
 
   useEffect(() => {
     // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      // Add welcome back message if user is logged in
+      if (session?.user) {
+        setChatMessages(prev => [...prev, {
+          id: Date.now(),
+          type: 'ai',
+          text: `Welcome back, ${session.user.user_metadata?.full_name || 'traveler'}! 👍`,
+          timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        }]);
+      }
     });
 
     // Listen for auth changes
@@ -42,24 +71,96 @@ function App() {
       setSession(session);
       setUser(session?.user ?? null);
       
-      // Close sign in modal after successful login
       if (event === 'SIGNED_IN') {
         setShowSignIn(false);
+        setChatMessages(prev => [...prev, {
+          id: Date.now(),
+          type: 'ai',
+          text: `Welcome back, ${session.user.user_metadata?.full_name || 'traveler'}! 👍`,
+          timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        }]);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleSearch = async () => {
+  // Chat functionality
+  const handleSendMessage = async () => {
+    if (!chatInput.trim()) return;
+
+    const userMessage = {
+      id: Date.now(),
+      type: 'user',
+      text: chatInput,
+      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setChatMessages(prev => [...prev, userMessage]);
+    setChatInput('');
+    setIsTyping(true);
+
+    // Simulate AI processing and extract flight details
+    setTimeout(() => {
+      const input = chatInput.toLowerCase();
+      let aiResponse = '';
+      let shouldSearch = false;
+
+      // Parse the user input for flight details
+      const fromMatch = input.match(/from\s+(\w+)/i);
+      const toMatch = input.match(/to\s+(\w+)/i) || input.match(/(\w+)\s+on\s+/i);
+      const dateMatch = input.match(/(?:on|dec|december)\s+(\d+)/i);
+      const passengersMatch = input.match(/(\d+)\s+passenger/i);
+
+      if (fromMatch || toMatch || dateMatch) {
+        // Extract details
+        const newParams = { ...searchParams };
+        if (fromMatch) newParams.from = fromMatch[1];
+        if (toMatch) newParams.to = toMatch[1];
+        if (dateMatch) {
+          const month = '12';
+          const day = dateMatch[1].padStart(2, '0');
+          newParams.departDate = `2025-${month}-${day}`;
+        }
+        if (passengersMatch) newParams.passengers = parseInt(passengersMatch[1]);
+
+        setSearchParams(newParams);
+        shouldSearch = true;
+
+        aiResponse = `Perfect! I've got:\n\n✈️ From: ${newParams.from || 'Not specified'}\n✈️ To: ${newParams.to || 'Not specified'}\n📅 Date: ${newParams.departDate || 'Not specified'}\n👥 Passengers: ${newParams.passengers}\n\nSearching for the best flights for you...`;
+      } else {
+        aiResponse = "I'd be happy to help you find flights! Could you tell me:\n\n📍 Where are you flying from?\n📍 Where do you want to go?\n📅 What date would you like to travel?";
+      }
+
+      const aiMessage = {
+        id: Date.now() + 1,
+        type: 'ai',
+        text: aiResponse,
+        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      };
+
+      setChatMessages(prev => [...prev, aiMessage]);
+      setIsTyping(false);
+
+      // If we have enough info, search for flights
+      if (shouldSearch && searchParams.from && searchParams.to) {
+        setTimeout(() => handleFlightSearch(), 1000);
+      }
+    }, 1500);
+  };
+
+  const handleFlightSearch = () => {
     setLoading(true);
-    // Simulate API call
+    
+    // Simulate API call with realistic flight data
     setTimeout(() => {
       const mockFlights = [
         {
           id: 1,
           airline: 'United Airlines',
           logo: '🛫',
+          from: searchParams.from || 'JFK',
+          to: searchParams.to || 'LHR',
           departure: '08:00 AM',
           arrival: '02:30 PM',
           duration: '6h 30m',
@@ -67,13 +168,22 @@ function App() {
           price: 459,
           prediction: 'up',
           predictionPercent: 12,
+          predictionText: 'Price likely to increase by 12% in next 48hrs',
           aircraft: 'Boeing 787',
           emission: 'Low',
+          jetLag: {
+            severity: 'Moderate',
+            tips: ['Adjust sleep 2 days before', 'Stay hydrated', 'Get sunlight on arrival'],
+            timeDifference: '5 hours ahead'
+          },
+          bookingUrl: 'https://www.united.com'
         },
         {
           id: 2,
           airline: 'Delta Airlines',
           logo: '✈️',
+          from: searchParams.from || 'JFK',
+          to: searchParams.to || 'LHR',
           departure: '10:15 AM',
           arrival: '05:00 PM',
           duration: '6h 45m',
@@ -81,13 +191,22 @@ function App() {
           price: 389,
           prediction: 'down',
           predictionPercent: 8,
+          predictionText: 'Price likely to drop by 8% - good time to book!',
           aircraft: 'Airbus A350',
           emission: 'Medium',
+          jetLag: {
+            severity: 'Moderate',
+            tips: ['Avoid caffeine 6hrs before landing', 'Use sleep mask', 'Stay active during flight'],
+            timeDifference: '5 hours ahead'
+          },
+          bookingUrl: 'https://www.delta.com'
         },
         {
           id: 3,
           airline: 'American Airlines',
           logo: '🛩️',
+          from: searchParams.from || 'JFK',
+          to: searchParams.to || 'LHR',
           departure: '01:00 PM',
           arrival: '08:15 PM',
           duration: '7h 15m',
@@ -95,13 +214,29 @@ function App() {
           price: 520,
           prediction: 'stable',
           predictionPercent: 0,
+          predictionText: 'Price stable - book anytime this week',
           aircraft: 'Boeing 777',
           emission: 'Low',
+          jetLag: {
+            severity: 'Mild',
+            tips: ['Evening arrival helps adjustment', 'Light dinner', 'Go to bed at local time'],
+            timeDifference: '5 hours ahead'
+          },
+          bookingUrl: 'https://www.aa.com'
         },
       ];
+      
       setFlights(mockFlights);
       setLoading(false);
-    }, 1500);
+
+      // Add AI message about results
+      setChatMessages(prev => [...prev, {
+        id: Date.now(),
+        type: 'ai',
+        text: `Great news! I found ${mockFlights.length} flights for you. Check out the results below - I've included price predictions and jet lag tips for each flight! 🎉`,
+        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      }]);
+    }, 2000);
   };
 
   const handleOAuthSignIn = async (provider) => {
@@ -117,6 +252,18 @@ function App() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setShowMyAccount(false);
+    setChatMessages(prev => [...prev, {
+      id: Date.now(),
+      type: 'ai',
+      text: "You've been signed out. Feel free to search for flights anytime!",
+      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    }]);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSendMessage();
+    }
   };
 
   return (
@@ -139,7 +286,6 @@ function App() {
               <span className="ai-icon">🤖</span> AI Agent Active
             </button>
             
-            {/* Show Sign In button OR User Account button */}
             {!user ? (
               <button className="sign-in-btn" onClick={() => setShowSignIn(true)}>
                 <span className="user-icon">👤</span> Sign In
@@ -165,35 +311,24 @@ function App() {
         </div>
 
         <div className="chat-messages">
-          <div className="message ai-message">
-            <span className="message-icon">✈️</span>
-            <div className="message-content">
-              <p>Hi! I'm your AI travel agent, and I'm here to help you find the perfect flight!</p>
-              <div className="timestamp">12:13 PM</div>
-            </div>
-          </div>
-
-          <div className="message ai-message">
-            <div className="message-content">
-              <p>You can tell me your trip details however you like! For example:</p>
-              <div className="example-queries">
-                <div className="example">
-                  🎯 All at once: "I want to fly from New York to London on Dec 15, returning Dec 22, 2 passengers, economy"
-                </div>
-                <div className="example">
-                  🎯 Or just start: "London on Dec 23rd"
-                </div>
-              </div>
-              <p>I'll figure out what you mean and ask about anything I'm missing. What's your trip?</p>
-              <div className="timestamp">12:13 PM</div>
-            </div>
-          </div>
-
-          {user && (
-            <div className="message ai-message">
+          {chatMessages.map(msg => (
+            <div key={msg.id} className={`message ${msg.type}-message`}>
+              {msg.type === 'ai' && <span className="message-icon">✈️</span>}
               <div className="message-content">
-                <p>Welcome back, {user.user_metadata?.full_name || 'traveler'}! 👍</p>
-                <div className="timestamp">12:13 PM</div>
+                <p style={{ whiteSpace: 'pre-line' }}>{msg.text}</p>
+                <div className="timestamp">{msg.timestamp}</div>
+              </div>
+            </div>
+          ))}
+          {isTyping && (
+            <div className="message ai-message">
+              <span className="message-icon">✈️</span>
+              <div className="message-content">
+                <div className="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
               </div>
             </div>
           )}
@@ -204,101 +339,17 @@ function App() {
             type="text"
             className="chat-input"
             placeholder="Tell me about your trip..."
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            onKeyPress={handleKeyPress}
           />
-          <button className="send-btn">Send</button>
+          <button className="send-btn" onClick={handleSendMessage}>
+            Send
+          </button>
         </div>
       </section>
 
-      {/* Search Form */}
-      <section className="search-section">
-        <div className="trip-type-selector">
-          <button
-            className={tripType === 'roundtrip' ? 'active' : ''}
-            onClick={() => setTripType('roundtrip')}
-          >
-            Round Trip
-          </button>
-          <button
-            className={tripType === 'oneway' ? 'active' : ''}
-            onClick={() => setTripType('oneway')}
-          >
-            One Way
-          </button>
-          <button
-            className={tripType === 'multicity' ? 'active' : ''}
-            onClick={() => setTripType('multicity')}
-          >
-            Multi-City
-          </button>
-        </div>
-
-        <div className="search-form">
-          <div className="form-row">
-            <div className="form-field">
-              <label>From</label>
-              <input
-                type="text"
-                placeholder="City or Airport"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-              />
-            </div>
-            <div className="form-field">
-              <label>To</label>
-              <input
-                type="text"
-                placeholder="City or Airport"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-              />
-            </div>
-            <div className="form-field">
-              <label>Depart</label>
-              <input
-                type="date"
-                value={departDate}
-                onChange={(e) => setDepartDate(e.target.value)}
-              />
-            </div>
-            {tripType === 'roundtrip' && (
-              <div className="form-field">
-                <label>Return</label>
-                <input
-                  type="date"
-                  value={returnDate}
-                  onChange={(e) => setReturnDate(e.target.value)}
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="form-row">
-            <div className="form-field">
-              <label>Passengers</label>
-              <input
-                type="number"
-                min="1"
-                value={passengers}
-                onChange={(e) => setPassengers(Number(e.target.value))}
-              />
-            </div>
-            <div className="form-field">
-              <label>Class</label>
-              <select value={cabinClass} onChange={(e) => setCabinClass(e.target.value)}>
-                <option value="economy">Economy</option>
-                <option value="premium">Premium Economy</option>
-                <option value="business">Business</option>
-                <option value="first">First Class</option>
-              </select>
-            </div>
-            <button className="search-btn" onClick={handleSearch}>
-              Search Flights
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Results Section */}
+      {/* Loading */}
       {loading && (
         <div className="loading-container">
           <div className="spinner"></div>
@@ -306,6 +357,7 @@ function App() {
         </div>
       )}
 
+      {/* Results Section */}
       {flights.length > 0 && (
         <section className="results-section">
           <div className="sidebar">
@@ -429,7 +481,7 @@ function App() {
                     <div className="flight-times">
                       <div className="time-block">
                         <div className="time">{flight.departure}</div>
-                        <div className="location">{from || 'JFK'}</div>
+                        <div className="location">{flight.from}</div>
                       </div>
                       <div className="flight-duration">
                         <div className="duration-line"></div>
@@ -438,7 +490,7 @@ function App() {
                       </div>
                       <div className="time-block">
                         <div className="time">{flight.arrival}</div>
-                        <div className="location">{to || 'LHR'}</div>
+                        <div className="location">{flight.to}</div>
                       </div>
                     </div>
 
@@ -462,21 +514,42 @@ function App() {
                       <div className="emission-badge">{flight.emission} CO₂</div>
                     </div>
 
-                    <button className="select-btn">Select</button>
+                    <a 
+                      href={flight.bookingUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="select-btn"
+                    >
+                      Book Now →
+                    </a>
                   </div>
 
+                  {/* Expandable Details */}
                   <div className="flight-details">
-                    <div className="detail-item">
-                      <span className="detail-label">Aircraft:</span>
-                      <span>{flight.aircraft}</span>
+                    <div className="detail-section">
+                      <h4>💰 Price Prediction</h4>
+                      <p>{flight.predictionText}</p>
                     </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Carbon Emissions:</span>
-                      <span>{flight.emission}</span>
+                    
+                    <div className="detail-section">
+                      <h4>😴 Jet Lag Optimizer</h4>
+                      <p><strong>Severity:</strong> {flight.jetLag.severity}</p>
+                      <p><strong>Time Difference:</strong> {flight.jetLag.timeDifference}</p>
+                      <div className="jet-lag-tips">
+                        <strong>Tips:</strong>
+                        <ul>
+                          {flight.jetLag.tips.map((tip, idx) => (
+                            <li key={idx}>{tip}</li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Jet Lag Impact:</span>
-                      <span>Moderate (6-hour time difference)</span>
+
+                    <div className="detail-section">
+                      <h4>✈️ Flight Details</h4>
+                      <p><strong>Aircraft:</strong> {flight.aircraft}</p>
+                      <p><strong>Carbon Emissions:</strong> {flight.emission}</p>
+                      <p><strong>Stops:</strong> {flight.stops}</p>
                     </div>
                   </div>
                 </div>
