@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Your Supabase credentials
-const supabaseUrl = 'https://qgbivnrdarphatlpfjpl.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYml2bnJkYXJwaGF0bHBmamxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMxNzE2MTUsImV4cCI6MjA0ODc0NzYxNX0.avJpo3M101JzdXBhYmFzZSIsInJlZiI6InFnYml2bnJkYXJwaGF0bHBmamxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMxNzE2MTUsImV4cCI6MjA0ODc0NzYxNX0'
+const supabaseUrl = 'https://qqbiynrdarphatlpfipl.supabase.co'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxYml5bnJkYXJwaGF0bHBmaXBsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2MzMyNzIsImV4cCI6MjA4MDIwOTI3Mn0.oyGV-dLHEKoqAt177oTxav-ltFR7_UVn_v_oR7uAonI'
 
 // Create Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
