@@ -600,6 +600,7 @@ body {
 .flight-duration {
   flex: 1;
   text-align: center;
+  position: relative;
 }
 
 .duration-line {
@@ -609,13 +610,15 @@ body {
   position: relative;
 }
 
-.duration-line::after {
-  content: 'âœˆï¸';
+.plane-icon {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 1rem;
+  font-size: 1.2rem;
+  background: white;
+  padding: 0 4px;
+  color: #2563eb;
 }
 
 .duration-text {
