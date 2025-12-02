@@ -6,7 +6,8 @@ import {
   CheckCircle, ArrowRight, Copy, ExternalLink, Sparkles,
   Menu, X, Search, Filter, Globe
 } from 'lucide-react';
-import { supabase, getCurrentUser, saveTrip } from './supabaseClient';
+import { supabase } from './supabaseClient';
+
 // Conversation states
 const CONVERSATION_STATES = {
   GREETING: 'greeting',
@@ -1026,6 +1027,64 @@ function App() {
   // Add state for mobile menu and sign in modal
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showSignInModal, setShowSignInModal] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
+
+  // Check auth status on mount
+  useEffect(() => {
+    checkUser();
+    
+    // Listen for auth changes
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        
+        if (event === 'SIGNED_IN' && currentUser) {
+          setShowSignInModal(false);
+          addBotMessage(`Welcome back, ${currentUser.user_metadata?.full_name || currentUser.email}! 👋`, 500);
+        }
+        
+        if (event === 'SIGNED_OUT') {
+          addBotMessage('You have been signed out. See you next time! 👋', 500);
+        }
+      }
+    );
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
+
+  const checkUser = async () => {
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      setUser(currentUser);
+    } catch (error) {
+      console.error('Error checking user:', error);
+    } finally {
+      setLoadingAuth(false);
+    }
+  };
+
+  const handleOAuthSignIn = async (provider) => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider,
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      
+      if (error) {
+        console.error('OAuth error:', error);
+        addBotMessage(`Sorry, sign in failed. Please try again.`, 500);
+      }
+    } catch (error) {
+      console.error('Sign in error:', error);
+      addBotMessage(`Sorry, something went wrong. Please try again.`, 500);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -1578,7 +1637,10 @@ function App() {
             {/* OAuth Providers */}
             <div className="space-y-3">
               {/* Google */}
-              <button className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group">
+              <button 
+                onClick={() => handleOAuthSignIn('google')}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group"
+              >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -1589,7 +1651,10 @@ function App() {
               </button>
 
               {/* Facebook */}
-              <button className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group">
+              <button 
+                onClick={() => handleOAuthSignIn('facebook')}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group"
+              >
                 <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                 </svg>
@@ -1597,7 +1662,10 @@ function App() {
               </button>
 
               {/* Apple */}
-              <button className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group">
+              <button 
+                onClick={() => handleOAuthSignIn('apple')}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group"
+              >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
                 </svg>
@@ -1605,7 +1673,10 @@ function App() {
               </button>
 
               {/* Microsoft */}
-              <button className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group">
+              <button 
+                onClick={() => handleOAuthSignIn('azure')}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group"
+              >
                 <svg className="w-5 h-5" viewBox="0 0 23 23">
                   <path fill="#f3f3f3" d="M0 0h23v23H0z"/>
                   <path fill="#f35325" d="M1 1h10v10H1z"/>
@@ -1617,7 +1688,10 @@ function App() {
               </button>
 
               {/* Instagram */}
-              <button className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group">
+              <button 
+                onClick={() => alert('Instagram OAuth coming soon! For now, use Google or Email.')}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group opacity-60"
+              >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <defs>
                     <radialGradient id="instagram-gradient" cx="30%" cy="107%">
@@ -1634,7 +1708,10 @@ function App() {
               </button>
 
               {/* TikTok */}
-              <button className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group">
+              <button 
+                onClick={() => alert('TikTok OAuth coming soon! For now, use Google or Email.')}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group opacity-60"
+              >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="#25F4EE" d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
                   <path fill="#FE2C55" d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" opacity=".9"/>
@@ -1644,7 +1721,10 @@ function App() {
               </button>
 
               {/* X (Twitter) */}
-              <button className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group">
+              <button 
+                onClick={() => handleOAuthSignIn('twitter')}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group"
+              >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                 </svg>
@@ -1652,7 +1732,10 @@ function App() {
               </button>
 
               {/* Yahoo */}
-              <button className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group">
+              <button 
+                onClick={() => alert('Yahoo OAuth coming soon! For now, use Google or Email.')}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all group opacity-60"
+              >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="#5F01D1" d="M12.007 0C5.385 0 .007 5.378.007 12s5.378 12 11.999 12c6.622 0 12-5.378 12-12S18.629 0 12.007 0zm4.447 6.25l-3.662 6.702v3.817h-1.584v-3.817L7.545 6.25h1.756l2.706 5.091L14.714 6.25h1.74z"/>
                 </svg>
