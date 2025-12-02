@@ -1047,6 +1047,138 @@ function App() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="flex gap-6">
+          {/* LEFT SIDEBAR - FILTERS */}
+          {flightOptions.length > 0 && (
+            <div className="w-64 flex-shrink-0">
+              <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-24">
+                <div className="flex items-center gap-2 mb-6">
+                  <Filter className="w-5 h-5 text-blue-600" />
+                  <h3 className="font-bold text-lg">Filters</h3>
+                </div>
+                
+                {/* Class Filter */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold mb-3 text-gray-700">Class</label>
+                  <div className="space-y-2">
+                    {['economy', 'premium', 'business', 'first'].map((classType) => (
+                      <label key={classType} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="class"
+                          value={classType}
+                          checked={searchCriteria.class === classType}
+                          onChange={(e) => setSearchCriteria(prev => ({ ...prev, class: e.target.value }))}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <span className="text-sm capitalize">{classType === 'premium' ? 'Premium Economy' : classType}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Trip Type Filter */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold mb-3 text-gray-700">Trip Type</label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="tripType"
+                        value="roundtrip"
+                        checked={searchCriteria.tripType === 'roundtrip'}
+                        onChange={(e) => setSearchCriteria(prev => ({ ...prev, tripType: e.target.value }))}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <span className="text-sm">Round Trip</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="tripType"
+                        value="oneway"
+                        checked={searchCriteria.tripType === 'oneway'}
+                        onChange={(e) => setSearchCriteria(prev => ({ ...prev, tripType: e.target.value }))}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <span className="text-sm">One Way</span>
+                    </label>
+                  </div>
+                </div>
+                
+                {/* Stops Filter */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold mb-3 text-gray-700">Stops</label>
+                  <div className="space-y-2">
+                    {['any', 'nonstop', '1', '2+'].map((stopType) => (
+                      <label key={stopType} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="stops"
+                          value={stopType}
+                          checked={searchCriteria.maxStops === stopType}
+                          onChange={(e) => setSearchCriteria(prev => ({ ...prev, maxStops: e.target.value }))}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <span className="text-sm capitalize">
+                          {stopType === 'nonstop' ? 'Non-stop' : stopType === '1' ? '1 Stop' : stopType === '2+' ? '2+ Stops' : 'Any'}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Passengers */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold mb-3 text-gray-700">Passengers</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={searchCriteria.passengers}
+                    onChange={(e) => setSearchCriteria(prev => ({ ...prev, passengers: parseInt(e.target.value) || 1 }))}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                {/* Departure Time Preference */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold mb-3 text-gray-700">Departure Time</label>
+                  <div className="space-y-2">
+                    {['any', 'morning', 'afternoon', 'evening'].map((timeType) => (
+                      <label key={timeType} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="preferredTime"
+                          value={timeType}
+                          checked={searchCriteria.preferredTime === timeType}
+                          onChange={(e) => setSearchCriteria(prev => ({ ...prev, preferredTime: e.target.value }))}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <span className="text-sm capitalize">{timeType}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Apply Filters Button */}
+                <button
+                  onClick={() => {
+                    // Regenerate flights with new filters
+                    const newFlights = generateFlightOptions(searchCriteria);
+                    setFlightOptions(newFlights);
+                    addBotMessage(`Updated results based on your filters!`, 500);
+                  }}
+                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* MAIN CONTENT AREA */}
+          <div className="flex-1">
         {/* Chat Interface */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8">
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white">
@@ -1344,6 +1476,10 @@ function App() {
             </p>
           </div>
         )}
+        </div>
+        {/* End of main content area */}
+        </div>
+        {/* End of flex container */}
       </div>
     </div>
   );
