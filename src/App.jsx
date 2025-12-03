@@ -195,16 +195,13 @@ function App() {
     setIsTyping(true);
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      // Call our serverless API endpoint (not Anthropic directly)
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1024,
           messages: [
             {
               role: 'user',
@@ -213,6 +210,11 @@ function App() {
           ]
         })
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get response');
+      }
 
       const data = await response.json();
       const aiResponse = data.content[0].text;
