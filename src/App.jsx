@@ -502,57 +502,59 @@ function App() {
         </div>
       </header>
 
-      {/* Main Container with Ads */}
+      {/* Main Container */}
       <div className="main-container">
         <div className="content-area">
-          {/* AI Agent Chat Section */}
-          <section className="ai-chat-section">
-        <div className="ai-chat-header">
-          <div className="ai-avatar">💬</div>
-          <div>
-            <h2>Your AI Travel Agent</h2>
-            <p>I'll help you find and book the perfect flight</p>
-          </div>
-        </div>
+          
+          {/* Hero Section with Chat */}
+          <section className="hero-chat-section">
+            <div className="hero-content">
+              <h1 className="hero-title">READY TO TAKE OFF</h1>
+              <p className="hero-subtitle">FlightSearch makes your journey easier. Just type and we will book the best flight for you in minutes.</p>
+            </div>
 
-        <div className="chat-messages">
-          {chatMessages.map(msg => (
-            <div key={msg.id} className={`message ${msg.type}-message`}>
-              {msg.type === 'ai' && <span className="message-icon">✈️</span>}
-              <div className="message-content">
-                <p style={{ whiteSpace: 'pre-line' }}>{msg.text}</p>
-                <div className="timestamp">{msg.timestamp}</div>
+            <div className="chat-area">
+              <h2 className="chat-title">Talk to us where you would like to go</h2>
+              
+              <div className="chat-messages">
+                {chatMessages.map(msg => (
+                  <div key={msg.id} className={`message ${msg.type}-message`}>
+                    {msg.type === 'ai' && <span className="message-icon">✈️</span>}
+                    <div className="message-content">
+                      <p style={{ whiteSpace: 'pre-line' }}>{msg.text}</p>
+                      <div className="timestamp">{msg.timestamp}</div>
+                    </div>
+                  </div>
+                ))}
+                {isTyping && (
+                  <div className="message ai-message">
+                    <span className="message-icon">✈️</span>
+                    <div className="message-content">
+                      <div className="typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="chat-input-container">
+                <input
+                  type="text"
+                  className="chat-input"
+                  placeholder="Tell me about your trip..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                />
+                <button className="send-btn" onClick={handleSendMessage}>
+                  Send
+                </button>
               </div>
             </div>
-          ))}
-          {isTyping && (
-            <div className="message ai-message">
-              <span className="message-icon">✈️</span>
-              <div className="message-content">
-                <div className="typing-indicator">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="chat-input-container">
-          <input
-            type="text"
-            className="chat-input"
-            placeholder="Tell me about your trip..."
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-          />
-          <button className="send-btn" onClick={handleSendMessage}>
-            Send
-          </button>
-        </div>
-      </section>
+          </section>
 
       {/* Loading */}
       {loading && (
@@ -829,10 +831,10 @@ function App() {
         </section>
       )}
 
-      </div> {/* End content-area */}
+        </div> {/* End content-area */}
 
-      {/* Ads Sidebar */}
-      <AdsSidebar />
+        {/* Ads Sidebar */}
+        <AdsSidebar />
 
       </div> {/* End main-container */}
 
