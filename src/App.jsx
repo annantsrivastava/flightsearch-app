@@ -505,56 +505,132 @@ function App() {
       {/* Main Container */}
       <div className="main-container">
         <div className="content-area">
-          
-          {/* Hero Section with Chat */}
-          <section className="hero-chat-section">
-            <div className="hero-content">
-              <h1 className="hero-title">READY TO TAKE OFF</h1>
-              <p className="hero-subtitle">FlightSearch makes your journey easier. Just type and we will book the best flight for you in minutes.</p>
+
+          {/* Destination Cards Section */}
+          <section className="destination-cards-section">
+            <div className="section-header">
+              <span className="section-icon">✈️</span>
+              <span className="section-title">Featured deals for your next adventure</span>
             </div>
 
-            <div className="chat-area">
-              <h2 className="chat-title">Talk to us where you would like to go</h2>
-              
-              <div className="chat-messages">
-                {chatMessages.map(msg => (
-                  <div key={msg.id} className={`message ${msg.type}-message`}>
-                    {msg.type === 'ai' && <span className="message-icon">✈️</span>}
-                    <div className="message-content">
-                      <p style={{ whiteSpace: 'pre-line' }}>{msg.text}</p>
-                      <div className="timestamp">{msg.timestamp}</div>
+            <div className="destination-cards">
+              {/* Card 1: Barcelona */}
+              <div className="destination-card">
+                <div className="destination-image barcelona-img">🏛️</div>
+                <div className="discount-badge">75% off</div>
+                <div className="destination-info">
+                  <div className="destination-header">
+                    <div className="destination-name">Barcelona</div>
+                    <div className="destination-description">Gaudí buildings, Gothic Quarter & tapas</div>
+                  </div>
+                  <div className="destination-details">
+                    <div className="destination-dates">
+                      <span>Thu, Dec 4 → Thu, Dec 11</span>
+                      <span className="destination-airline">✈️ Nonstop · 7h 35m · Iberia</span>
+                    </div>
+                    <div className="destination-price">
+                      <div className="original-price">$353</div>
+                      <div className="current-price">$282</div>
                     </div>
                   </div>
-                ))}
-                {isTyping && (
-                  <div className="message ai-message">
-                    <span className="message-icon">✈️</span>
-                    <div className="message-content">
-                      <div className="typing-indicator">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
 
-              <div className="chat-input-container">
-                <input
-                  type="text"
-                  className="chat-input"
-                  placeholder="Tell me about your trip..."
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                />
-                <button className="send-btn" onClick={handleSendMessage}>
-                  Send
-                </button>
+              {/* Card 2: Hong Kong */}
+              <div className="destination-card">
+                <div className="destination-image hongkong-img">🌃</div>
+                <div className="discount-badge">60% off</div>
+                <div className="destination-info">
+                  <div className="destination-header">
+                    <div className="destination-name">Hong Kong</div>
+                    <div className="destination-description">Shopping, temples, peak & Kowloon</div>
+                  </div>
+                  <div className="destination-details">
+                    <div className="destination-dates">
+                      <span>Mon, Dec 1 → Mon, Dec 8</span>
+                      <span className="destination-airline">✈️ Nonstop · 16h 15m · Cathay Pacific</span>
+                    </div>
+                    <div className="destination-price">
+                      <div className="original-price">$1,246</div>
+                      <div className="current-price">$903</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 3: San Francisco */}
+              <div className="destination-card">
+                <div className="destination-image sanfrancisco-img">🌉</div>
+                <div className="discount-badge">65% off</div>
+                <div className="destination-info">
+                  <div className="destination-header">
+                    <div className="destination-name">San Francisco</div>
+                    <div className="destination-description">Golden Gate Bridge, cable cars & fog</div>
+                  </div>
+                  <div className="destination-details">
+                    <div className="destination-dates">
+                      <span>Sat, Dec 6 → Sat, Dec 13</span>
+                      <span className="destination-airline">✈️ Nonstop · 6h 28m · Alaska</span>
+                    </div>
+                    <div className="destination-price">
+                      <div className="original-price">$638</div>
+                      <div className="current-price">$191</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
+
+          {/* Hero Section */}
+          <div className="hero-content">
+            <h1 className="hero-title">READY TO TAKE OFF</h1>
+            <p className="hero-subtitle">FlightSearch makes your journey easier. Just type and we will book the best flight for you in minutes.</p>
+          </div>
+
+          {/* Chat Area - Keep Original */}
+          <section className="chat-area">
+            <h2 className="chat-title">Talk to us where you would like to go</h2>
+            <div className="chat-messages-wrapper">
+              <div className="chat-messages">
+          {chatMessages.map(msg => (
+            <div key={msg.id} className={`message ${msg.type}-message`}>
+              {msg.type === 'ai' && <span className="message-icon">✈️</span>}
+              <div className="message-content">
+                <p style={{ whiteSpace: 'pre-line' }}>{msg.text}</p>
+                <div className="timestamp">{msg.timestamp}</div>
+              </div>
+            </div>
+          ))}
+          {isTyping && (
+            <div className="message ai-message">
+              <span className="message-icon">✈️</span>
+              <div className="message-content">
+                <div className="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="chat-input-container">
+          <input
+            type="text"
+            className="chat-input"
+            placeholder="Tell me about your trip..."
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+          />
+          <button className="send-btn" onClick={handleSendMessage}>
+            Send
+          </button>
+        </div>
+      </div>
+    </section>
 
       {/* Loading */}
       {loading && (
