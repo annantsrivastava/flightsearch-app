@@ -142,6 +142,13 @@ body {
   text-align: center;
 }
 
+.hero-content {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 5rem 2rem 3rem;
+  text-align: center;
+}
+
 .hero-badge {
   display: inline-flex;
   align-items: center;
