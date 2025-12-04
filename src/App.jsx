@@ -754,9 +754,9 @@ Remember our previous conversation and build on it.`
       <div className="main-container">
         <div className="content-area">
           
-          {/* Hero Section - Only show when no results */}
+          {/* Hero Section */}
           {flights.length === 0 && (
-            <>
+            <div className="hero-section">
               <div className="hero-badge">
                 <span className="badge-dot"></span>
                 AI-Powered Travel Assistant
@@ -770,11 +770,9 @@ Remember our previous conversation and build on it.`
                 Skip the endless searching. Just tell our AI where you want to go, 
                 and we'll find the perfect flight with price predictions and jet lag tips—all in one conversation.
               </p>
-            </>
-          )}
 
-          {/* AI Chat Interface - ALWAYS VISIBLE */}
-          <div className={`ai-chat-container ${flights.length > 0 ? 'with-results' : ''}`}>
+              {/* AI Chat Interface */}
+              <div className="ai-chat-container">
                 <div className="ai-chat-header">
                   <div className="ai-avatar">🤖</div>
                   <div className="ai-greeting">
@@ -845,8 +843,7 @@ Remember our previous conversation and build on it.`
                 </div>
               </div>
 
-            {/* Trust Signals - Only when no results */}
-            {flights.length === 0 && (
+              {/* Trust Signals */}
               <div className="trust-section">
                 <div className="trust-item">
                   <div className="trust-number">50K+</div>
@@ -865,7 +862,8 @@ Remember our previous conversation and build on it.`
                   <div className="trust-label">Would Recommend</div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
           {/* Features Preview */}
           {flights.length === 0 && (
@@ -1277,6 +1275,46 @@ Remember our previous conversation and build on it.`
         <AdsSidebar />
 
       </div> {/* End main-container */}
+
+      {/* FIXED FLOATING CHAT - ALWAYS VISIBLE */}
+      <div className="floating-chat-widget">
+        <div className="chat-widget-header">
+          <div className="ai-avatar-small">🤖</div>
+          <div className="widget-title">
+            <div>AI Travel Assistant</div>
+            <div className="widget-status">Online</div>
+          </div>
+        </div>
+
+        <div className="widget-messages">
+          {chatMessages.map((message) => (
+            <div key={message.id} className={`widget-message ${message.type}`}>
+              <div className="widget-message-text">{message.text}</div>
+            </div>
+          ))}
+          {isTyping && (
+            <div className="widget-message ai">
+              <div className="typing-indicator">
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="widget-input">
+          <input 
+            type="text" 
+            className="widget-input-field" 
+            placeholder="Where would you like to go?"
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+          />
+          <button className="widget-send-btn" onClick={handleSendMessage}>
+            ➤
+          </button>
+        </div>
+      </div>
 
       {/* Sign In Modal */}
       {showSignIn && (
