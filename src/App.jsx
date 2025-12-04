@@ -844,7 +844,6 @@ Remember our previous conversation and build on it.`
                   </div>
                 </div>
               </div>
-            </div>
 
             {/* Trust Signals - Only when no results */}
             {flights.length === 0 && (
