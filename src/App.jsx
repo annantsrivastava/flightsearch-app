@@ -754,9 +754,9 @@ Remember our previous conversation and build on it.`
       <div className="main-container">
         <div className="content-area">
           
-          {/* Hero Section */}
+          {/* Hero Section - Only show decorative elements when no results */}
           {flights.length === 0 && (
-            <div className="hero-section">
+            <div className="hero-content">
               <div className="hero-badge">
                 <span className="badge-dot"></span>
                 AI-Powered Travel Assistant
@@ -770,9 +770,11 @@ Remember our previous conversation and build on it.`
                 Skip the endless searching. Just tell our AI where you want to go, 
                 and we'll find the perfect flight with price predictions and jet lag tips—all in one conversation.
               </p>
+            </div>
+          )}
 
-              {/* AI Chat Interface */}
-              <div className="ai-chat-container">
+          {/* AI Chat Interface - ALWAYS VISIBLE */}
+          <div className="ai-chat-container">
                 <div className="ai-chat-header">
                   <div className="ai-avatar">🤖</div>
                   <div className="ai-greeting">
@@ -843,27 +845,27 @@ Remember our previous conversation and build on it.`
                 </div>
               </div>
 
-              {/* Trust Signals */}
-              <div className="trust-section">
-                <div className="trust-item">
-                  <div className="trust-number">50K+</div>
-                  <div className="trust-label">Happy Travelers</div>
+              {/* Trust Signals - Only show when no results */}
+              {flights.length === 0 && (
+                <div className="trust-section">
+                  <div className="trust-item">
+                    <div className="trust-number">50K+</div>
+                    <div className="trust-label">Happy Travelers</div>
+                  </div>
+                  <div className="trust-item">
+                    <div className="trust-number">$5.2M</div>
+                    <div className="trust-label">Money Saved</div>
+                  </div>
+                  <div className="trust-item">
+                    <div className="trust-number">4.9★</div>
+                    <div className="trust-label">Average Rating</div>
+                  </div>
+                  <div className="trust-item">
+                    <div className="trust-number">95%</div>
+                    <div className="trust-label">Would Recommend</div>
+                  </div>
                 </div>
-                <div className="trust-item">
-                  <div className="trust-number">$5.2M</div>
-                  <div className="trust-label">Money Saved</div>
-                </div>
-                <div className="trust-item">
-                  <div className="trust-number">4.9★</div>
-                  <div className="trust-label">Average Rating</div>
-                </div>
-                <div className="trust-item">
-                  <div className="trust-number">95%</div>
-                  <div className="trust-label">Would Recommend</div>
-                </div>
-              </div>
-            </div>
-          )}
+              )}
 
           {/* Features Preview */}
           {flights.length === 0 && (
