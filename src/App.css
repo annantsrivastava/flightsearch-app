@@ -201,6 +201,26 @@ body {
   transition: all 0.3s;
 }
 
+/* Compact version when results are showing */
+.ai-chat-container.with-results {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 400px;
+  max-height: 600px;
+  margin-bottom: 0;
+  z-index: 90;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.ai-chat-container.with-results .chat-messages {
+  max-height: 300px;
+}
+
+.ai-chat-container.with-results .chat-suggestions {
+  display: none;
+}
+
 .ai-chat-container:hover {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
   border-color: #d1d5db;
