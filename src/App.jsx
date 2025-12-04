@@ -754,9 +754,9 @@ Remember our previous conversation and build on it.`
       <div className="main-container">
         <div className="content-area">
           
-          {/* Hero Section */}
+          {/* Hero Section - Only show when no results */}
           {flights.length === 0 && (
-            <div className="hero-section">
+            <>
               <div className="hero-badge">
                 <span className="badge-dot"></span>
                 AI-Powered Travel Assistant
@@ -770,9 +770,11 @@ Remember our previous conversation and build on it.`
                 Skip the endless searching. Just tell our AI where you want to go, 
                 and we'll find the perfect flight with price predictions and jet lag tips—all in one conversation.
               </p>
+            </>
+          )}
 
-              {/* AI Chat Interface */}
-              <div className="ai-chat-container">
+          {/* AI Chat Interface - ALWAYS VISIBLE */}
+          <div className={`ai-chat-container ${flights.length > 0 ? 'with-results' : ''}`}>
                 <div className="ai-chat-header">
                   <div className="ai-avatar">🤖</div>
                   <div className="ai-greeting">
@@ -842,8 +844,10 @@ Remember our previous conversation and build on it.`
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Trust Signals */}
+            {/* Trust Signals - Only when no results */}
+            {flights.length === 0 && (
               <div className="trust-section">
                 <div className="trust-item">
                   <div className="trust-number">50K+</div>
@@ -862,8 +866,7 @@ Remember our previous conversation and build on it.`
                   <div className="trust-label">Would Recommend</div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Features Preview */}
           {flights.length === 0 && (
