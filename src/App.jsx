@@ -28,15 +28,244 @@ function App() {
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
 
-  // Search & Filter States
-  const [searchParams, setSearchParams] = useState({
+  // Track extracted flight information with advanced criteria
+  const [flightInfo, setFlightInfo] = useState({
     from: '',
     to: '',
     departDate: '',
     returnDate: '',
     passengers: 1,
-    cabinClass: 'economy'
+    class: 'economy',
+    tripType: 'oneway', // Default to one-way as per requirements
+    maxPrice: null,
+    dateRange: { start: '', end: '' },
+    sortPreference: 'best', // 'cheapest', 'fastest', 'best'
+    flexible: false
   });
+
+  // Function to extract flight information from text using AI
+  const extractFlightInfo = (text, previousInfo) => {
+    const info = { ...previousInfo };
+    const lowerText = text.toLowerCase();
+    
+    // Detect if user is modifying previous request
+    const isModification = lowerText.includes('actually') || 
+                           lowerText.includes('change') || 
+                           lowerText.includes('i want') ||
+                           lowerText.includes('make it') ||
+                           lowerText.includes('two way') ||
+                           lowerText.includes('round trip');
+    
+    // === TRIP TYPE DETECTION ===
+    if (lowerText.match(/two[- ]?way|round[- ]?trip|return/)) {
+      info.tripType = 'roundtrip';
+    } else if (lowerText.match(/one[- ]?way|single/)) {
+      info.tripType = 'oneway';
+    }
+    
+    // === CITY/AIRPORT DETECTION ===
+    // Enhanced patterns to catch "from X to Y"
+    const fromToPattern = /(?:from|leaving|departing)\s+([A-Za-z\s]+?)\s+(?:to|into|going to|flying to)/i;
+    const toPattern = /(?:to|into|going to|flying to)\s+([A-Za-z\s]+?)(?:\s+on|\s+in|\s+this|\s+any|\s+between|\s+under|\s+\$|\s*$)/i;
+    
+    const fromToMatch = text.match(fromToPattern);
+    if (fromToMatch) {
+      info.from = fromToMatch[1].trim();
+    }
+    
+    const toMatch = text.match(toPattern);
+    if (toMatch) {
+      info.to = toMatch[1].trim();
+    }
+    
+    // === DATE DETECTION ===
+    // Specific date: "dec 15", "december 15th", "12/15"
+    const specificDatePattern = /(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2}(?:st|nd|rd|th)?/i;
+    const numericDatePattern = /\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/;
+    
+    // Date range: "this december", "between X and Y"
+    const monthPattern = /this\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*/i;
+    const betweenPattern = /between\s+(.+?)\s+and\s+(.+?)(?:\s|$)/i;
+    const anyDatePattern = /any\s+date/i;
+    
+    const specificMatch = text.match(specificDatePattern);
+    const numericMatch = text.match(numericDatePattern);
+    const monthMatch = text.match(monthPattern);
+    const betweenMatch = text.match(betweenPattern);
+    
+    if (specificMatch && !info.departDate) {
+      info.departDate = specificMatch[0];
+      info.flexible = false;
+    } else if (numericMatch && !info.departDate) {
+      info.departDate = numericMatch[0];
+      info.flexible = false;
+    } else if (monthMatch) {
+      const month = monthMatch[1];
+      info.dateRange = {
+        start: `${month} 1, 2025`,
+        end: `${month} 31, 2025`
+      };
+      info.flexible = true;
+    } else if (betweenMatch) {
+      info.dateRange = {
+        start: betweenMatch[1].trim(),
+        end: betweenMatch[2].trim()
+      };
+      info.flexible = true;
+    } else if (anyDatePattern.test(text)) {
+      info.flexible = true;
+    }
+    
+    // === RETURN DATE DETECTION ===
+    if (info.tripType === 'roundtrip') {
+      const returningPattern = /return(?:ing)?\s+(?:on\s+)?([A-Za-z\s\d\/]+)/i;
+      const returnMatch = text.match(returningPattern);
+      if (returnMatch) {
+        info.returnDate = returnMatch[1].trim();
+      }
+    }
+    
+    // === PASSENGER DETECTION ===
+    const passengerPattern = /(\d+)\s+(?:passenger|person|people|traveler|adult)/i;
+    const passengerMatch = text.match(passengerPattern);
+    if (passengerMatch) {
+      info.passengers = parseInt(passengerMatch[1]);
+    }
+    
+    // === CLASS DETECTION ===
+    if (/first\s+class|first/i.test(text)) {
+      info.class = 'first';
+    } else if (/business\s+class|business/i.test(text)) {
+      info.class = 'business';
+    } else if (/premium\s+economy|premium/i.test(text)) {
+      info.class = 'premium';
+    } else if (/economy|coach/i.test(text)) {
+      info.class = 'economy';
+    }
+    
+    // === PRICE LIMIT DETECTION ===
+    const pricePattern = /under\s+\$?(\d+)|less\s+than\s+\$?(\d+)|below\s+\$?(\d+)|max(?:imum)?\s+\$?(\d+)/i;
+    const priceMatch = text.match(pricePattern);
+    if (priceMatch) {
+      const price = priceMatch[1] || priceMatch[2] || priceMatch[3] || priceMatch[4];
+      info.maxPrice = parseInt(price);
+    }
+    
+    // === SORT PREFERENCE DETECTION ===
+    if (/cheapest|lowest\s+price|least\s+expensive/i.test(text)) {
+      info.sortPreference = 'cheapest';
+    } else if (/fastest|quickest|shortest\s+flight|direct/i.test(text)) {
+      info.sortPreference = 'fastest';
+    } else if (/best/i.test(text)) {
+      info.sortPreference = 'best';
+    }
+    
+    return info;
+  };
+
+  // Check if we have minimum info to search
+  const hasEnoughInfoToSearch = (info) => {
+    // Must have origin, destination, and either specific date or flexible date range
+    const hasRoute = info.from && info.to;
+    const hasDate = info.departDate || info.flexible || (info.dateRange.start && info.dateRange.end);
+    
+    // For round-trip, check if we need return date
+    if (info.tripType === 'roundtrip' && info.departDate && !info.returnDate) {
+      return false; // Need return date for round-trip with specific depart date
+    }
+    
+    return hasRoute && hasDate;
+  };
+
+  // Generate smart follow-up question
+  const getFollowUpQuestion = (info) => {
+    if (!info.to && !info.from) {
+      return "Where would you like to fly? (For example: from New York to London)";
+    }
+    if (!info.to) {
+      return "Where would you like to go?";
+    }
+    if (!info.from) {
+      return "Where will you be departing from?";
+    }
+    if (!info.departDate && !info.flexible && !info.dateRange.start) {
+      return "When would you like to travel?";
+    }
+    if (info.tripType === 'roundtrip' && info.departDate && !info.returnDate) {
+      return "When would you like to return?";
+    }
+    return null;
+  };
+
+  // Generate confirmation message based on extracted info
+  const generateConfirmation = (info) => {
+    let confirmation = "";
+    
+    // Add airport codes if known (simple mapping)
+    const airportCodes = {
+      'new york': 'JFK',
+      'london': 'LHR',
+      'los angeles': 'LAX',
+      'chicago': 'ORD',
+      'boston': 'BOS',
+      'miami': 'MIA',
+      'san francisco': 'SFO',
+      'paris': 'CDG',
+      'tokyo': 'NRT',
+      'dubai': 'DXB'
+    };
+    
+    const fromCode = airportCodes[info.from?.toLowerCase()] || '';
+    const toCode = airportCodes[info.to?.toLowerCase()] || '';
+    
+    // Build confirmation string
+    if (info.flexible) {
+      confirmation = `Searching for ${info.sortPreference === 'cheapest' ? 'cheapest' : info.sortPreference === 'fastest' ? 'fastest' : ''} flights from ${info.from} ${fromCode ? `(${fromCode})` : ''} to ${info.to} ${toCode ? `(${toCode})` : ''}`;
+      
+      if (info.dateRange.start && info.dateRange.end) {
+        confirmation += ` between ${info.dateRange.start} and ${info.dateRange.end}`;
+      } else {
+        confirmation += ` for flexible dates`;
+      }
+    } else {
+      confirmation = `Found flights from ${info.from} ${fromCode ? `(${fromCode})` : ''} to ${info.to} ${toCode ? `(${toCode})` : ''}`;
+      
+      if (info.tripType === 'oneway') {
+        confirmation += `, one-way`;
+      } else {
+        confirmation += `, round-trip`;
+      }
+      
+      confirmation += ` for ${info.passengers} passenger${info.passengers > 1 ? 's' : ''}`;
+      
+      if (info.departDate) {
+        confirmation += ` departing ${info.departDate}`;
+        // Add year if not present
+        if (!info.departDate.includes('2025') && !info.departDate.includes('2024')) {
+          confirmation += ', 2025';
+        }
+      }
+      
+      if (info.returnDate && info.tripType === 'roundtrip') {
+        confirmation += `, returning ${info.returnDate}`;
+        if (!info.returnDate.includes('2025') && !info.returnDate.includes('2024')) {
+          confirmation += ', 2025';
+        }
+      }
+    }
+    
+    if (info.maxPrice) {
+      confirmation += ` under $${info.maxPrice}`;
+    }
+    
+    if (info.class !== 'economy') {
+      confirmation += ` in ${info.class} class`;
+    }
+    
+    confirmation += ".";
+    
+    return confirmation;
+  };
 
   // Enhanced Filter States (Kayak-style)
   const [priceRange, setPriceRange] = useState([0, 2000]);
@@ -180,6 +409,28 @@ function App() {
     setChatInput(suggestion);
   };
 
+  // Build conversation history for API (maintains context)
+  const buildConversationHistory = () => {
+    const history = [];
+    
+    // Convert our chat messages to API format
+    chatMessages.forEach(msg => {
+      if (msg.type === 'user') {
+        history.push({
+          role: 'user',
+          content: msg.text
+        });
+      } else if (msg.type === 'ai') {
+        history.push({
+          role: 'assistant',
+          content: msg.text
+        });
+      }
+    });
+    
+    return history;
+  };
+
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
 
@@ -191,58 +442,141 @@ function App() {
     };
 
     setChatMessages(prev => [...prev, userMessage]);
+    const currentInput = chatInput;
     setChatInput('');
     setIsTyping(true);
 
+    // Extract flight information from user input (pass previous info for context)
+    const extractedInfo = extractFlightInfo(currentInput, flightInfo);
+    setFlightInfo(extractedInfo);
+
+    // Check if we have enough info to search
+    const canSearch = hasEnoughInfoToSearch(extractedInfo);
+    const followUpQuestion = getFollowUpQuestion(extractedInfo);
+
     try {
-      // Call our serverless API endpoint (not Anthropic directly)
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: 'user',
-              content: `You are a helpful flight search assistant. Parse this flight search query and respond in a friendly way: "${chatInput}". If you can identify flight details (origin, destination, dates, passengers, class), acknowledge them. If information is missing, ask for it naturally.`
-            }
-          ]
-        })
-      });
+      let aiResponseText = "";
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get response');
+      if (canSearch) {
+        // Generate confirmation message
+        aiResponseText = generateConfirmation(extractedInfo);
+      } else if (followUpQuestion) {
+        // Need more information - ask follow-up
+        // Build full conversation history for context
+        const conversationHistory = buildConversationHistory();
+        
+        // Add context about extracted info
+        const contextPrompt = `You are a friendly flight search assistant. 
+        
+Context from conversation:
+${extractedInfo.to ? `- Destination: ${extractedInfo.to}` : ''}
+${extractedInfo.from ? `- Origin: ${extractedInfo.from}` : ''}
+${extractedInfo.departDate ? `- Date: ${extractedInfo.departDate}` : ''}
+${extractedInfo.passengers > 1 ? `- Passengers: ${extractedInfo.passengers}` : ''}
+${extractedInfo.class !== 'economy' ? `- Class: ${extractedInfo.class}` : ''}
+
+The user just said: "${currentInput}"
+
+Ask them this follow-up question naturally and friendly: "${followUpQuestion}"`;
+
+        conversationHistory.push({
+          role: 'user',
+          content: contextPrompt
+        });
+
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messages: conversationHistory
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          aiResponseText = data.content[0].text;
+        } else {
+          aiResponseText = followUpQuestion;
+        }
+      } else {
+        // General conversational response
+        // Build full conversation history for context
+        const conversationHistory = buildConversationHistory();
+        
+        conversationHistory.push({
+          role: 'user',
+          content: `You are a helpful flight search assistant. The user said: "${currentInput}". 
+          
+Respond naturally and helpfully. If they're asking about flights, help them clarify their travel plans. 
+Remember our previous conversation and build on it.`
+        });
+
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messages: conversationHistory
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          aiResponseText = data.content[0].text;
+        } else {
+          aiResponseText = "I'd be happy to help you find flights! Where would you like to go?";
+        }
       }
-
-      const data = await response.json();
-      const aiResponse = data.content[0].text;
 
       setTimeout(() => {
         setChatMessages(prev => [...prev, {
           id: Date.now(),
           type: 'ai',
-          text: aiResponse,
+          text: aiResponseText,
           timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
         }]);
         setIsTyping(false);
 
-        // Simulate search with mock data
-        if (chatInput.toLowerCase().includes('search') || chatInput.toLowerCase().includes('find')) {
-          simulateSearch();
+        // Automatically show results if we have enough information
+        if (canSearch) {
+          setTimeout(() => {
+            // Apply sort preference
+            setSortBy(extractedInfo.sortPreference);
+            simulateSearch();
+          }, 500);
         }
       }, 1000);
 
     } catch (error) {
       console.error('Error:', error);
-      setChatMessages(prev => [...prev, {
-        id: Date.now(),
-        type: 'ai',
-        text: "I'm having trouble connecting right now. Please try again!",
-        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-      }]);
-      setIsTyping(false);
+      
+      // Even on error, if we have enough info, show confirmation
+      if (canSearch) {
+        const confirmation = generateConfirmation(extractedInfo);
+        setChatMessages(prev => [...prev, {
+          id: Date.now(),
+          type: 'ai',
+          text: confirmation,
+          timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        }]);
+        setIsTyping(false);
+        
+        setTimeout(() => {
+          setSortBy(extractedInfo.sortPreference);
+          simulateSearch();
+        }, 500);
+      } else {
+        setChatMessages(prev => [...prev, {
+          id: Date.now(),
+          type: 'ai',
+          text: "I'm having trouble connecting right now. Please try again!",
+          timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        }]);
+        setIsTyping(false);
+      }
     }
   };
 
