@@ -1276,46 +1276,6 @@ Remember our previous conversation and build on it.`
 
       </div> {/* End main-container */}
 
-      {/* FIXED FLOATING CHAT - ALWAYS VISIBLE */}
-      <div className="floating-chat-widget">
-        <div className="chat-widget-header">
-          <div className="ai-avatar-small">🤖</div>
-          <div className="widget-title">
-            <div>AI Travel Assistant</div>
-            <div className="widget-status">Online</div>
-          </div>
-        </div>
-
-        <div className="widget-messages">
-          {chatMessages.map((message) => (
-            <div key={message.id} className={`widget-message ${message.type}`}>
-              <div className="widget-message-text">{message.text}</div>
-            </div>
-          ))}
-          {isTyping && (
-            <div className="widget-message ai">
-              <div className="typing-indicator">
-                <span></span><span></span><span></span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="widget-input">
-          <input 
-            type="text" 
-            className="widget-input-field" 
-            placeholder="Where would you like to go?"
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-          />
-          <button className="widget-send-btn" onClick={handleSendMessage}>
-            ➤
-          </button>
-        </div>
-      </div>
-
       {/* Sign In Modal */}
       {showSignIn && (
         <div className="modal-overlay" onClick={() => setShowSignIn(false)}>
