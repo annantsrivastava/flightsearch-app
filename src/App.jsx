@@ -586,112 +586,145 @@ Remember our previous conversation and build on it.`
     }
   };
 
-  const simulateSearch = () => {
+  const simulateSearch = async () => {
     setLoading(true);
     
-    setTimeout(() => {
-      const mockFlights = [
-        {
-          id: 1,
-          airline: 'United Airlines',
-          logo: '🛫',
-          aircraft: 'Boeing 787',
-          from: 'IAH',
-          to: 'DEL',
-          departure: '10:30 AM',
-          arrival: '2:15 PM +1',
-          duration: '15h 45m',
-          stops: 'Nonstop',
-          price: 850,
-          emission: '2,100kg',
-          prediction: 'down',
-          predictionPercent: 12,
-          predictionText: 'Our AI predicts prices will drop by 12% in the next 3 days. Consider waiting!',
-          bookingUrl: 'https://www.kayak.com',
-          jetLag: {
-            severity: 'Moderate',
-            timeDifference: '+10.5 hours',
-            tips: [
-              'Start adjusting sleep schedule 3 days before departure',
-              'Stay hydrated during the flight',
-              'Get sunlight exposure upon arrival',
-              'Avoid heavy meals before sleeping'
-            ]
-          }
-        },
-        {
-          id: 2,
-          airline: 'Delta',
-          logo: '✈️',
-          aircraft: 'Airbus A350',
-          from: 'IAH',
-          to: 'DEL',
-          departure: '6:45 PM',
-          arrival: '11:30 AM +1',
-          duration: '16h 45m',
-          stops: '1 stop',
-          price: 720,
-          emission: '1,950kg',
-          prediction: 'stable',
-          predictionPercent: 0,
-          predictionText: 'Prices are stable. Book now to secure this rate.',
-          bookingUrl: 'https://www.kayak.com',
-          jetLag: {
-            severity: 'Moderate',
-            timeDifference: '+10.5 hours',
-            tips: [
-              'Take short naps during layover',
-              'Drink water frequently',
-              'Avoid caffeine 6 hours before landing',
-              'Use melatonin if needed'
-            ]
-          }
-        },
-        {
-          id: 3,
-          airline: 'British Airways',
-          logo: '🛩️',
-          aircraft: 'Boeing 777',
-          from: 'IAH',
-          to: 'DEL',
-          departure: '8:15 AM',
-          arrival: '1:45 PM +1',
-          duration: '17h 30m',
-          stops: '1 stop',
-          price: 680,
-          emission: '2,050kg',
-          prediction: 'up',
-          predictionPercent: 8,
-          predictionText: 'Prices likely to increase by 8% soon. Book now for best value!',
-          bookingUrl: 'https://www.kayak.com',
-          jetLag: {
-            severity: 'High',
-            timeDifference: '+10.5 hours',
-            tips: [
-              'Adjust sleep 2-3 days early',
-              'Stay active during flight',
-              'Eat light meals',
-              'Expose yourself to daylight'
-            ]
-          }
-        }
-      ];
+    try {
+      // Prepare search parameters for Amadeus API
+      const searchParams = {
+        origin: getAirportCode(flightInfo.from),
+        destination: getAirportCode(flightInfo.to),
+        departureDate: formatDateForAPI(flightInfo.departDate),
+        returnDate: flightInfo.tripType === 'roundtrip' ? formatDateForAPI(flightInfo.returnDate) : null,
+        adults: flightInfo.passengers,
+        travelClass: flightInfo.class,
+        nonStop: flightInfo.stops === 'nonstop',
+      };
 
-      setAllFlights(mockFlights);
-      setFlights(mockFlights);
+      console.log('Searching flights with params:', searchParams);
+
+      // Call our Vercel serverless function
+      const response = await fetch('/api/search-flights', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(searchParams),
+      });
+
+      if (!response.ok) {
+        throw new Error('Flight search failed');
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.flights && data.flights.length > 0) {
+        console.log('Found flights:', data.flights.length);
+        
+        setAllFlights(data.flights);
+        setFlights(data.flights);
+        setLoading(false);
+
+        // Check for better prices within ±15 days (Mock data for now)
+        checkForBetterPrices(data.flights);
+
+        setChatMessages(prev => [...prev, {
+          id: Date.now(),
+          type: 'ai',
+          text: `Great! I found ${data.flights.length} flights for you. Check out the results below! 🎉`,
+          timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        }]);
+      } else {
+        // No flights found
+        setLoading(false);
+        setChatMessages(prev => [...prev, {
+          id: Date.now(),
+          type: 'ai',
+          text: `I couldn't find any flights for this route. Try adjusting your dates or airports.`,
+          timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        }]);
+      }
+    } catch (error) {
+      console.error('Error searching flights:', error);
       setLoading(false);
-
-      // Check for better prices within ±15 days (Mock data for now)
-      // This will be replaced with real Amadeus API data later
-      checkForBetterPrices(mockFlights);
-
+      
+      // Show error message to user
       setChatMessages(prev => [...prev, {
         id: Date.now(),
         type: 'ai',
-        text: `Great! I found ${mockFlights.length} flights for you. Check out the results below! 🎉`,
+        text: `I'm having trouble connecting to the flight search service. Please try again in a moment. (${error.message})`,
         timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
       }]);
-    }, 2000);
+    }
+  };
+
+  // Helper function to get airport code from city name
+  const getAirportCode = (city) => {
+    if (!city) return '';
+    
+    // Simple mapping - can be enhanced with a proper airport database
+    const airportCodes = {
+      'new york': 'JFK',
+      'london': 'LHR',
+      'los angeles': 'LAX',
+      'chicago': 'ORD',
+      'boston': 'BOS',
+      'miami': 'MIA',
+      'san francisco': 'SFO',
+      'paris': 'CDG',
+      'tokyo': 'NRT',
+      'dubai': 'DXB',
+      'houston': 'IAH',
+      'delhi': 'DEL',
+      'mumbai': 'BOM',
+      'singapore': 'SIN',
+      'hong kong': 'HKG',
+      'sydney': 'SYD',
+      'toronto': 'YYZ',
+      'barcelona': 'BCN',
+      'rome': 'FCO',
+      'amsterdam': 'AMS',
+    };
+    
+    const cityLower = city.toLowerCase().trim();
+    
+    // Check if input is already an airport code (3 letters)
+    if (city.length === 3 && city === city.toUpperCase()) {
+      return city;
+    }
+    
+    return airportCodes[cityLower] || city.toUpperCase();
+  };
+
+  // Helper function to format date for Amadeus API (YYYY-MM-DD)
+  const formatDateForAPI = (dateStr) => {
+    if (!dateStr) return null;
+    
+    try {
+      // Handle various date formats
+      // If already in YYYY-MM-DD format, return as is
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return dateStr;
+      }
+      
+      // Parse common formats like "Dec 15", "December 15th", etc.
+      const year = new Date().getFullYear();
+      const parsedDate = new Date(`${dateStr}, ${year}`);
+      
+      if (isNaN(parsedDate.getTime())) {
+        console.warn('Could not parse date:', dateStr);
+        return null;
+      }
+      
+      const yyyy = parsedDate.getFullYear();
+      const mm = String(parsedDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(parsedDate.getDate()).padStart(2, '0');
+      
+      return `${yyyy}-${mm}-${dd}`;
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return null;
+    }
   };
 
   // Function to check for better prices within ±15 days
