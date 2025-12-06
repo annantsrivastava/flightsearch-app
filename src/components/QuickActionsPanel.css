@@ -1,0 +1,233 @@
+.quick-actions-panel {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Left Side - Quick Action Chips */
+.quick-action-chips {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.action-chip {
+  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.action-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #4f46e5;
+}
+
+.chip-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chip-price {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.chip-book-btn {
+  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.chip-book-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+}
+
+/* Right Side - Modify Controls */
+.modify-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-left: 24px;
+  border-left: 2px solid #e1e8ed;
+}
+
+.modify-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  margin-right: 8px;
+}
+
+.modify-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+.modify-label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.modify-value-wrapper {
+  position: relative;
+}
+
+.modify-value-btn {
+  background: white;
+  border: 1.5px solid #e1e8ed;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  min-width: 60px;
+  justify-content: space-between;
+}
+
+.modify-value-btn:hover {
+  border-color: #4f46e5;
+  background: #f8fafc;
+}
+
+.modify-icon {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.modify-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: white;
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 200px;
+  overflow: hidden;
+}
+
+.dropdown-item {
+  padding: 10px 16px;
+  font-size: 14px;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dropdown-item:hover {
+  background: #f1f5f9;
+  color: #4f46e5;
+}
+
+/* Trip Type Toggle */
+.trip-type-toggle {
+  display: flex;
+  gap: 4px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.toggle-btn {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.toggle-btn.active {
+  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+  color: white;
+  box-shadow: 0 2px 4px rgba(236, 72, 153, 0.2);
+}
+
+.toggle-btn:not(.active):hover {
+  background: white;
+  color: #1e293b;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .quick-actions-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .modify-controls {
+    border-left: none;
+    border-top: 2px solid #e1e8ed;
+    padding-left: 0;
+    padding-top: 16px;
+    justify-content: flex-start;
+  }
+
+  .quick-action-chips {
+    flex-direction: column;
+  }
+
+  .action-chip {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 768px) {
+  .quick-actions-panel {
+    padding: 16px;
+  }
+
+  .modify-controls {
+    flex-wrap: wrap;
+  }
+
+  .chip-label,
+  .chip-price {
+    font-size: 12px;
+  }
+
+  .chip-book-btn {
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+}
