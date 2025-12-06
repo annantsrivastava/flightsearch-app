@@ -3,6 +3,8 @@ import { supabase } from './supabaseClient';
 import MyAccount from './components/MyAccount';
 import AdsSidebar from './components/AdsSidebar';
 import QuickActionsPanel from './components/QuickActionsPanel';
+import SearchSummaryBanner from './components/SearchSummaryBanner';
+import PriceAlertBanner from './components/PriceAlertBanner';
 import './App.css';
 
 function App() {
@@ -283,6 +285,9 @@ function App() {
   const [flights, setFlights] = useState([]);
   const [allFlights, setAllFlights] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Price Alert State
+  const [priceAlert, setPriceAlert] = useState(null);
 
   useEffect(() => {
     // Check initial session
@@ -676,6 +681,10 @@ Remember our previous conversation and build on it.`
       setFlights(mockFlights);
       setLoading(false);
 
+      // Check for better prices within ±15 days (Mock data for now)
+      // This will be replaced with real Amadeus API data later
+      checkForBetterPrices(mockFlights);
+
       setChatMessages(prev => [...prev, {
         id: Date.now(),
         type: 'ai',
@@ -683,6 +692,37 @@ Remember our previous conversation and build on it.`
         timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
       }]);
     }, 2000);
+  };
+
+  // Function to check for better prices within ±15 days
+  const checkForBetterPrices = (currentFlights) => {
+    // Mock logic - will be replaced with real Amadeus API calls
+    // For now, simulate finding a better price
+    const currentCheapest = Math.min(...currentFlights.map(f => f.price));
+    
+    // Simulate: 70% chance of finding a better price within range
+    const hasBetterPrice = Math.random() > 0.3;
+    
+    if (hasBetterPrice) {
+      // Mock better price (20-40% cheaper)
+      const savingsPercent = 0.2 + Math.random() * 0.2; // 20-40%
+      const betterPrice = Math.round(currentCheapest * (1 - savingsPercent));
+      
+      // Random offset ±15 days
+      const daysOffset = Math.floor(Math.random() * 31) - 15; // -15 to +15
+      
+      // Mock better date
+      const betterDate = `Dec ${15 + daysOffset}th`; // Simplified
+      
+      setPriceAlert({
+        betterPrice,
+        currentPrice: currentCheapest,
+        betterDate,
+        daysOffset
+      });
+    } else {
+      setPriceAlert(null);
+    }
   };
 
   const handleOAuthSignIn = async (provider) => {
@@ -1168,6 +1208,19 @@ Remember our previous conversation and build on it.`
                   flights={flights}
                   onModify={handleModifySearch}
                 />
+
+                {/* Search Summary Banner - Shows current search criteria */}
+                <SearchSummaryBanner flightInfo={flightInfo} />
+
+                {/* Price Alert Banner - Shows if better price found within ±15 days */}
+                {priceAlert && (
+                  <PriceAlertBanner 
+                    betterPrice={priceAlert.betterPrice}
+                    currentPrice={priceAlert.currentPrice}
+                    betterDate={priceAlert.betterDate}
+                    daysOffset={priceAlert.daysOffset}
+                  />
+                )}
 
                 <div className="results-header">
                   <h3>{flights.length} Flights Found</h3>
