@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import MyAccount from './components/MyAccount';
 import AdsSidebar from './components/AdsSidebar';
+import QuickActionsPanel from './components/QuickActionsPanel';
 import './App.css';
 
 function App() {
@@ -721,6 +722,27 @@ Remember our previous conversation and build on it.`
     return flights;
   };
 
+  // Handle real-time modifications from Quick Actions Panel
+  const handleModifySearch = (updatedFlightInfo) => {
+    setFlightInfo(updatedFlightInfo);
+    setLoading(true);
+    
+    // Add a message to chat about the modification
+    const modificationMessage = {
+      id: Date.now(),
+      type: 'ai',
+      text: `Updating your search... ${updatedFlightInfo.passengers} passenger${updatedFlightInfo.passengers > 1 ? 's' : ''}, ${updatedFlightInfo.tripType === 'oneway' ? 'one-way' : 'round-trip'}`,
+      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    };
+    
+    setChatMessages(prev => [...prev, modificationMessage]);
+    
+    // Re-run search with updated info
+    setTimeout(() => {
+      simulateSearch();
+    }, 500);
+  };
+
   return (
     <div className="app">
       {/* Header */}
@@ -807,27 +829,30 @@ Remember our previous conversation and build on it.`
                   )}
                 </div>
 
-                <div className="chat-suggestions">
-                  <div className="suggestions-label">Popular searches</div>
-                  <div className="suggestion-chips">
-                    <div className="chip" onClick={() => handleSuggestionClick('Beach vacation under $800')}>
-                      <span className="chip-icon">🏖️</span>
-                      <span>Beach vacation under $800</span>
-                    </div>
-                    <div className="chip" onClick={() => handleSuggestionClick('Cheap flights to Europe')}>
-                      <span className="chip-icon">🌍</span>
-                      <span>Cheap flights to Europe</span>
-                    </div>
-                    <div className="chip" onClick={() => handleSuggestionClick('Business class to Tokyo')}>
-                      <span className="chip-icon">💼</span>
-                      <span>Business class to Tokyo</span>
-                    </div>
-                    <div className="chip" onClick={() => handleSuggestionClick('Weekend getaway ideas')}>
-                      <span className="chip-icon">🎉</span>
-                      <span>Weekend getaway ideas</span>
+                {/* Popular Searches - Only show when no results */}
+                {flights.length === 0 && (
+                  <div className="chat-suggestions">
+                    <div className="suggestions-label">Popular searches</div>
+                    <div className="suggestion-chips">
+                      <div className="chip" onClick={() => handleSuggestionClick('Flights to Paris under $600')}>
+                        <span className="chip-icon">✈️</span>
+                        <span>Flights to Paris under $600</span>
+                      </div>
+                      <div className="chip" onClick={() => handleSuggestionClick('Round-trip to Tokyo')}>
+                        <span className="chip-icon">🌏</span>
+                        <span>Round-trip to Tokyo</span>
+                      </div>
+                      <div className="chip" onClick={() => handleSuggestionClick('Miami this weekend')}>
+                        <span className="chip-icon">🏖️</span>
+                        <span>Miami this weekend</span>
+                      </div>
+                      <div className="chip" onClick={() => handleSuggestionClick('San Francisco to New York')}>
+                        <span className="chip-icon">🌉</span>
+                        <span>San Francisco to New York</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 <div className="chat-input-area">
                   <div className="input-wrapper">
@@ -1137,6 +1162,13 @@ Remember our previous conversation and build on it.`
               </div>
 
               <div className="results-content">
+                {/* Quick Actions Panel - Shows Cheapest/Fastest/Best Value + Modify Controls */}
+                <QuickActionsPanel 
+                  flightInfo={flightInfo}
+                  flights={flights}
+                  onModify={handleModifySearch}
+                />
+
                 <div className="results-header">
                   <h3>{flights.length} Flights Found</h3>
                   <div className="sort-options">
