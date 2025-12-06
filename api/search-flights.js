@@ -14,11 +14,16 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing required parameters' });
   }
 
-  const API_KEY = process.env.VITE_AMADEUS_API_KEY;
-  const API_SECRET = process.env.VITE_AMADEUS_API_SECRET;
+  // Vercel serverless functions - check both with and without VITE_ prefix
+  const API_KEY = process.env.AMADEUS_API_KEY || process.env.VITE_AMADEUS_API_KEY;
+  const API_SECRET = process.env.AMADEUS_API_SECRET || process.env.VITE_AMADEUS_API_SECRET;
 
   if (!API_KEY || !API_SECRET) {
-    return res.status(500).json({ error: 'Amadeus credentials not configured' });
+    console.error('Missing Amadeus credentials in Vercel environment variables');
+    return res.status(500).json({ 
+      error: 'Amadeus credentials not configured',
+      details: 'Set AMADEUS_API_KEY and AMADEUS_API_SECRET in Vercel dashboard'
+    });
   }
 
   try {

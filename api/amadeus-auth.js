@@ -7,11 +7,19 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const API_KEY = process.env.VITE_AMADEUS_API_KEY;
-  const API_SECRET = process.env.VITE_AMADEUS_API_SECRET;
+  // Vercel serverless functions - remove VITE_ prefix
+  const API_KEY = process.env.AMADEUS_API_KEY || process.env.VITE_AMADEUS_API_KEY;
+  const API_SECRET = process.env.AMADEUS_API_SECRET || process.env.VITE_AMADEUS_API_SECRET;
 
   if (!API_KEY || !API_SECRET) {
-    return res.status(500).json({ error: 'Amadeus credentials not configured' });
+    console.error('Missing credentials:', { 
+      hasApiKey: !!API_KEY, 
+      hasApiSecret: !!API_SECRET 
+    });
+    return res.status(500).json({ 
+      error: 'Amadeus credentials not configured',
+      details: 'Check Vercel environment variables'
+    });
   }
 
   try {
